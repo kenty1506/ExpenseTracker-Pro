@@ -1,13 +1,17 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.13.35931.197 d17.13
+VisualStudioVersion = 17.13.35931.197
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{A2CDCFBA-C4AF-4A20-8274-8650E99C9E84}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExpenseTracker.Domain", "ExpenseTracker.Domain\ExpenseTracker.Domain.csproj", "{92148182-219E-434D-9BF2-BDA0628099FE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExpenseTracker.Application", "ExpenseTracker.Application\ExpenseTracker.Application.csproj", "{690D6375-3817-45D9-9D3B-9642D91E8E05}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExpenseTracker.Infrastructure", "ExpenseTracker.Infrastructure\ExpenseTracker.Infrastructure.csproj", "{1323F4E8-A089-4267-A96E-555BDF66FFE6}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -19,12 +23,22 @@ Global
 		{92148182-219E-434D-9BF2-BDA0628099FE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{92148182-219E-434D-9BF2-BDA0628099FE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{92148182-219E-434D-9BF2-BDA0628099FE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{690D6375-3817-45D9-9D3B-9642D91E8E05}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{690D6375-3817-45D9-9D3B-9642D91E8E05}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{690D6375-3817-45D9-9D3B-9642D91E8E05}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{690D6375-3817-45D9-9D3B-9642D91E8E05}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1323F4E8-A089-4267-A96E-555BDF66FFE6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1323F4E8-A089-4267-A96E-555BDF66FFE6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1323F4E8-A089-4267-A96E-555BDF66FFE6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1323F4E8-A089-4267-A96E-555BDF66FFE6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{92148182-219E-434D-9BF2-BDA0628099FE} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{690D6375-3817-45D9-9D3B-9642D91E8E05} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{1323F4E8-A089-4267-A96E-555BDF66FFE6} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {30A5D9E0-7EAF-41DB-A4D6-F0C8EF54F8A5}
