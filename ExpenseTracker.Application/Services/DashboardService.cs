@@ -7,16 +7,21 @@ namespace ExpenseTracker.Application.Services;
 public class DashboardService : IDashboardService
 {
     private readonly ITransactionRepository _transactionRepository;
+    private readonly ICurrentUserService _currentUserService;
 
-    public DashboardService(ITransactionRepository transactionRepository)
+    public DashboardService(
+        ITransactionRepository transactionRepository,
+        ICurrentUserService currentUserService)
     {
         _transactionRepository = transactionRepository;
+        _currentUserService = currentUserService;
     }
 
     public async Task<DashboardSummaryDto> GetSummaryAsync()
     {
         var transactions =
-            await _transactionRepository.GetAllForDashboardAsync();
+            await _transactionRepository.GetAllForDashboardAsync(
+                _currentUserService.UserId);
 
         var transactionList = transactions.ToList();
 
@@ -33,13 +38,16 @@ public class DashboardService : IDashboardService
             TotalIncome = totalIncome,
             TotalExpense = totalExpense,
             Balance = totalIncome - totalExpense,
-            TransactionCount = transactionList.Count
+            TransactionCount = transactionList.Count()
         };
     }
-    public async Task<IEnumerable<CategoryBreakdownDto>> GetCategoryBreakdownAsync()
+
+    public async Task<IEnumerable<CategoryBreakdownDto>>
+        GetCategoryBreakdownAsync()
     {
         var transactions =
-            await _transactionRepository.GetAllAsync();
+            await _transactionRepository.GetAllAsync(
+                _currentUserService.UserId);
 
         return transactions
             .Where(t => t.Type == TransactionType.Expense)

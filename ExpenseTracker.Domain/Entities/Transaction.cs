@@ -5,6 +5,7 @@ namespace ExpenseTracker.Domain.Entities;
 
 public class Transaction : BaseEntity
 {
+    public string UserId { get; set; } = string.Empty;
 
     public TransactionType Type { get; set; }
 

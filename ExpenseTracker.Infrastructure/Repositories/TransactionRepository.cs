@@ -14,18 +14,21 @@ public class TransactionRepository : ITransactionRepository
         _context = context;
     }
 
-    public async Task<IEnumerable<Transaction>> GetAllAsync()
+    public async Task<IEnumerable<Transaction>> GetAllAsync(string userId)
     {
         return await _context.Transactions
+            .Where(x => x.UserId == userId)
             .Include(x => x.Category)
             .ToListAsync();
     }
 
-    public async Task<Transaction?> GetByIdAsync(int id)
+    public async Task<Transaction?> GetByIdAsync(int id, string userId)
     {
         return await _context.Transactions
             .Include(x => x.Category)
-            .FirstOrDefaultAsync(x => x.Id == id);
+            .FirstOrDefaultAsync(x =>
+                x.Id == id &&
+                x.UserId == userId);
     }
 
 
@@ -38,9 +41,12 @@ public class TransactionRepository : ITransactionRepository
         return transaction;
     }
 
-    public async Task<bool> DeleteAsync(int id)
+    public async Task<bool> DeleteAsync(int id, string userId)
     {
-        var transaction = await _context.Transactions.FindAsync(id);
+        var transaction = await _context.Transactions
+            .FirstOrDefaultAsync(x =>
+                x.Id == id &&
+                x.UserId == userId);
 
         if (transaction == null)
             return false;
@@ -70,10 +76,11 @@ public class TransactionRepository : ITransactionRepository
 
         return true;
     }
-    public async Task<IEnumerable<Transaction>> GetAllForDashboardAsync()
+    public async Task<IEnumerable<Transaction>> GetAllForDashboardAsync(string userId)
     {
         return await _context.Transactions
             .AsNoTracking()
+            .Where(x => x.UserId == userId)
             .ToListAsync();
     }
 }

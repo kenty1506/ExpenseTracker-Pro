@@ -8,51 +8,42 @@ public class TransactionService : ITransactionService
 {
     private readonly ITransactionRepository _transactionRepository;
     private readonly ICategoryRepository _categoryRepository;
+    private readonly ICurrentUserService _currentUserService;
 
     public TransactionService(
         ITransactionRepository transactionRepository,
-        ICategoryRepository categoryRepository)
+        ICategoryRepository categoryRepository,
+        ICurrentUserService currentUserService)
     {
         _transactionRepository = transactionRepository;
         _categoryRepository = categoryRepository;
+        _currentUserService = currentUserService;
     }
 
     public async Task<IEnumerable<TransactionDto>> GetAllAsync()
     {
-        var transactions = await _transactionRepository.GetAllAsync();
+        var transactions = await _transactionRepository.GetAllAsync(
+            _currentUserService.UserId);
 
-        return transactions.Select(t => new TransactionDto
-        {
-            Id = t.Id,
-            Type = t.Type,
-            Category = t.Category?.Name ?? string.Empty,
-            Amount = t.Amount,
-            Notes = t.Notes,
-            Date = t.Date
-        });
+        return transactions.Select(MapToDto);
     }
 
     public async Task<TransactionDto?> GetByIdAsync(int id)
     {
-        var transaction = await _transactionRepository.GetByIdAsync(id);
+        var transaction = await _transactionRepository.GetByIdAsync(
+            id,
+            _currentUserService.UserId);
 
-        if (transaction == null)
-            return null;
-
-        return new TransactionDto
-        {
-            Id = transaction.Id,
-            Type = transaction.Type,
-            Category = transaction.Category?.Name ?? string.Empty,
-            Amount = transaction.Amount,
-            Notes = transaction.Notes,
-            Date = transaction.Date
-        };
+        return transaction == null
+            ? null
+            : MapToDto(transaction);
     }
 
-    public async Task<TransactionDto> CreateAsync(CreateTransactionDto dto)
+    public async Task<TransactionDto> CreateAsync(
+        CreateTransactionDto dto)
     {
-        var category = await _categoryRepository.GetByIdAsync(dto.CategoryId);
+        var category = await _categoryRepository.GetByIdAsync(
+            dto.CategoryId);
 
         if (category == null)
         {
@@ -62,6 +53,7 @@ public class TransactionService : ITransactionService
 
         var transaction = new Transaction
         {
+            UserId = _currentUserService.UserId,
             Type = dto.Type,
             CategoryId = dto.CategoryId,
             Amount = dto.Amount,
@@ -69,10 +61,13 @@ public class TransactionService : ITransactionService
             Date = dto.Date
         };
 
-        var created = await _transactionRepository.CreateAsync(transaction);
+        var created = await _transactionRepository.CreateAsync(
+            transaction);
 
         var savedTransaction =
-            await _transactionRepository.GetByIdAsync(created.Id);
+            await _transactionRepository.GetByIdAsync(
+                created.Id,
+                _currentUserService.UserId);
 
         if (savedTransaction == null)
         {
@@ -80,32 +75,23 @@ public class TransactionService : ITransactionService
                 "The transaction was created but could not be reloaded.");
         }
 
-        return new TransactionDto
-        {
-            Id = savedTransaction.Id,
-            Type = savedTransaction.Type,
-            Category = savedTransaction.Category?.Name ?? string.Empty,
-            Amount = savedTransaction.Amount,
-            Notes = savedTransaction.Notes,
-            Date = savedTransaction.Date
-        };
+        return MapToDto(savedTransaction);
     }
 
-    public async Task<bool> DeleteAsync(int id)
-    {
-        return await _transactionRepository.DeleteAsync(id);
-    }
-
-    public async Task<TransactionDto?> UpdateAsync(int id, UpdateTransactionDto dto)
+    public async Task<TransactionDto?> UpdateAsync(
+        int id,
+        UpdateTransactionDto dto)
     {
         var existingTransaction =
-            await _transactionRepository.GetByIdAsync(id);
+            await _transactionRepository.GetByIdAsync(
+                id,
+                _currentUserService.UserId);
 
         if (existingTransaction == null)
             return null;
 
-        var category =
-            await _categoryRepository.GetByIdAsync(dto.CategoryId);
+        var category = await _categoryRepository.GetByIdAsync(
+            dto.CategoryId);
 
         if (category == null)
         {
@@ -120,26 +106,41 @@ public class TransactionService : ITransactionService
         existingTransaction.Date = dto.Date;
         existingTransaction.UpdatedAt = DateTime.UtcNow;
 
-        var updated =
-            await _transactionRepository.UpdateAsync(existingTransaction);
+        var updated = await _transactionRepository.UpdateAsync(
+            existingTransaction);
 
         if (!updated)
             return null;
 
         var savedTransaction =
-            await _transactionRepository.GetByIdAsync(id);
+            await _transactionRepository.GetByIdAsync(
+                id,
+                _currentUserService.UserId);
 
-        if (savedTransaction == null)
-            return null;
+        return savedTransaction == null
+            ? null
+            : MapToDto(savedTransaction);
+    }
 
+    public async Task<bool> DeleteAsync(int id)
+    {
+        return await _transactionRepository.DeleteAsync(
+            id,
+            _currentUserService.UserId);
+    }
+
+    private static TransactionDto MapToDto(
+        Transaction transaction)
+    {
         return new TransactionDto
         {
-            Id = savedTransaction.Id,
-            Type = savedTransaction.Type,
-            Category = savedTransaction.Category?.Name ?? string.Empty,
-            Amount = savedTransaction.Amount,
-            Notes = savedTransaction.Notes,
-            Date = savedTransaction.Date
+            Id = transaction.Id,
+            Type = transaction.Type,
+            Category =
+                transaction.Category?.Name ?? string.Empty,
+            Amount = transaction.Amount,
+            Notes = transaction.Notes,
+            Date = transaction.Date
         };
     }
 }
