@@ -51,6 +51,7 @@ public class TransactionService : ITransactionService
         var transaction = new Transaction
         {
             Type = dto.Type,
+            CategoryId = dto.CategoryId,
             Amount = dto.Amount,
             Notes = dto.Notes,
             Date = dto.Date
