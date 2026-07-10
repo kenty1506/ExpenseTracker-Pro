@@ -21,4 +21,13 @@ public class DashboardController : ControllerBase
 
         return Ok(summary);
     }
+
+    [HttpGet("category-breakdown")]
+    public async Task<IActionResult> GetCategoryBreakdown()
+    {
+        var breakdown =
+            await _dashboardService.GetCategoryBreakdownAsync();
+
+        return Ok(breakdown);
+    }
 }

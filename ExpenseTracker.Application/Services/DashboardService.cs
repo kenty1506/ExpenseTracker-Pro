@@ -36,4 +36,20 @@ public class DashboardService : IDashboardService
             TransactionCount = transactionList.Count
         };
     }
+    public async Task<IEnumerable<CategoryBreakdownDto>> GetCategoryBreakdownAsync()
+    {
+        var transactions =
+            await _transactionRepository.GetAllAsync();
+
+        return transactions
+            .Where(t => t.Type == TransactionType.Expense)
+            .GroupBy(t => t.Category?.Name ?? "Uncategorized")
+            .Select(group => new CategoryBreakdownDto
+            {
+                Category = group.Key,
+                Amount = group.Sum(t => t.Amount)
+            })
+            .OrderByDescending(x => x.Amount)
+            .ToList();
+    }
 }
