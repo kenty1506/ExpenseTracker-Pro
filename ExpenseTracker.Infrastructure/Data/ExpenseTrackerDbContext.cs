@@ -1,13 +1,13 @@
 ﻿using ExpenseTracker.Domain.Entities;
+using ExpenseTracker.Infrastructure.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace ExpenseTracker.Infrastructure.Data;
 
-public class ExpenseTrackerDbContext : DbContext
+public class ExpenseTrackerDbContext : IdentityDbContext<ApplicationUser>
 {
-    public ExpenseTrackerDbContext(
-        DbContextOptions<ExpenseTrackerDbContext> options)
-        : base(options)
+    public ExpenseTrackerDbContext(DbContextOptions<ExpenseTrackerDbContext> options) : base(options)
     {
     }
 
@@ -17,8 +17,9 @@ public class ExpenseTrackerDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(ExpenseTrackerDbContext).Assembly);
-
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.ApplyConfigurationsFromAssembly(
+            typeof(ExpenseTrackerDbContext).Assembly);
     }
 }

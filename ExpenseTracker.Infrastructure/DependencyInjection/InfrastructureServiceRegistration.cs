@@ -1,6 +1,8 @@
 ﻿using ExpenseTracker.Application.Interfaces;
 using ExpenseTracker.Infrastructure.Data;
+using ExpenseTracker.Infrastructure.Identity;
 using ExpenseTracker.Infrastructure.Repositories;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -15,8 +17,22 @@ public static class InfrastructureServiceRegistration
         services.AddDbContext<ExpenseTrackerDbContext>(options =>
             options.UseSqlite(connectionString));
 
+        services.AddIdentityCore<ApplicationUser>(options =>
+        {
+            options.User.RequireUniqueEmail = true;
+
+            options.Password.RequiredLength = 6;
+            options.Password.RequireDigit = true;
+            options.Password.RequireUppercase = true;
+            options.Password.RequireLowercase = true;
+            options.Password.RequireNonAlphanumeric = false;
+        })
+        .AddRoles<IdentityRole>()
+        .AddEntityFrameworkStores<ExpenseTrackerDbContext>();
+
         services.AddScoped<ITransactionRepository, TransactionRepository>();
         services.AddScoped<ICategoryRepository, CategoryRepository>();
+        services.AddScoped<IAuthService, AuthService>();
 
         return services;
     }
