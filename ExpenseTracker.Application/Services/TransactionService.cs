@@ -7,10 +7,14 @@ namespace ExpenseTracker.Application.Services;
 public class TransactionService : ITransactionService
 {
     private readonly ITransactionRepository _transactionRepository;
+    private readonly ICategoryRepository _categoryRepository;
 
-    public TransactionService(ITransactionRepository transactionRepository)
+    public TransactionService(
+        ITransactionRepository transactionRepository,
+        ICategoryRepository categoryRepository)
     {
         _transactionRepository = transactionRepository;
+        _categoryRepository = categoryRepository;
     }
 
     public async Task<IEnumerable<TransactionDto>> GetAllAsync()
@@ -48,6 +52,14 @@ public class TransactionService : ITransactionService
 
     public async Task<TransactionDto> CreateAsync(CreateTransactionDto dto)
     {
+        var category = await _categoryRepository.GetByIdAsync(dto.CategoryId);
+
+        if (category == null)
+        {
+            throw new ArgumentException(
+                $"Category with ID {dto.CategoryId} does not exist.");
+        }
+
         var transaction = new Transaction
         {
             Type = dto.Type,
@@ -59,14 +71,23 @@ public class TransactionService : ITransactionService
 
         var created = await _transactionRepository.CreateAsync(transaction);
 
+        var savedTransaction =
+            await _transactionRepository.GetByIdAsync(created.Id);
+
+        if (savedTransaction == null)
+        {
+            throw new InvalidOperationException(
+                "The transaction was created but could not be reloaded.");
+        }
+
         return new TransactionDto
         {
-            Id = created.Id,
-            Type = created.Type,
-            Category = created.Category?.Name ?? string.Empty,
-            Amount = created.Amount,
-            Notes = created.Notes,
-            Date = created.Date
+            Id = savedTransaction.Id,
+            Type = savedTransaction.Type,
+            Category = savedTransaction.Category?.Name ?? string.Empty,
+            Amount = savedTransaction.Amount,
+            Notes = savedTransaction.Notes,
+            Date = savedTransaction.Date
         };
     }
 
@@ -75,15 +96,22 @@ public class TransactionService : ITransactionService
         return await _transactionRepository.DeleteAsync(id);
     }
 
-    public async Task<TransactionDto?> UpdateAsync(
-    int id,
-    UpdateTransactionDto dto)
+    public async Task<TransactionDto?> UpdateAsync(int id, UpdateTransactionDto dto)
     {
         var existingTransaction =
             await _transactionRepository.GetByIdAsync(id);
 
         if (existingTransaction == null)
             return null;
+
+        var category =
+            await _categoryRepository.GetByIdAsync(dto.CategoryId);
+
+        if (category == null)
+        {
+            throw new ArgumentException(
+                $"Category with ID {dto.CategoryId} does not exist.");
+        }
 
         existingTransaction.Type = dto.Type;
         existingTransaction.CategoryId = dto.CategoryId;
@@ -92,12 +120,14 @@ public class TransactionService : ITransactionService
         existingTransaction.Date = dto.Date;
         existingTransaction.UpdatedAt = DateTime.UtcNow;
 
-        var updated = await _transactionRepository.UpdateAsync(existingTransaction);
+        var updated =
+            await _transactionRepository.UpdateAsync(existingTransaction);
 
         if (!updated)
             return null;
 
-        var savedTransaction = await _transactionRepository.GetByIdAsync(id);
+        var savedTransaction =
+            await _transactionRepository.GetByIdAsync(id);
 
         if (savedTransaction == null)
             return null;

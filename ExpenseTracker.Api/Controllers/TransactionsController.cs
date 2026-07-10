@@ -1,9 +1,11 @@
 ﻿using ExpenseTracker.Application.DTOs.Transactions;
 using ExpenseTracker.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ExpenseTracker.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class TransactionsController : ControllerBase
@@ -36,8 +38,20 @@ public class TransactionsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create(CreateTransactionDto dto)
     {
-        var transaction = await _transactionService.CreateAsync(dto);
-        return Ok(transaction);
+        try
+        {
+            var transaction =
+                await _transactionService.CreateAsync(dto);
+
+            return Ok(transaction);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
     }
 
     [HttpDelete("{id}")]
@@ -52,16 +66,24 @@ public class TransactionsController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> Update(
-    int id,
-    UpdateTransactionDto dto)
+    public async Task<IActionResult> Update(int id, UpdateTransactionDto dto)
     {
-        var transaction =
-            await _transactionService.UpdateAsync(id, dto);
+        try
+        {
+            var transaction =
+                await _transactionService.UpdateAsync(id, dto);
 
-        if (transaction == null)
-            return NotFound();
+            if (transaction == null)
+                return NotFound();
 
-        return Ok(transaction);
+            return Ok(transaction);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
     }
 }
