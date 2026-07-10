@@ -38,20 +38,10 @@ public class TransactionsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create(CreateTransactionDto dto)
     {
-        try
-        {
-            var transaction =
-                await _transactionService.CreateAsync(dto);
+        var transaction =
+            await _transactionService.CreateAsync(dto);
 
-            return Ok(transaction);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
-        }
+        return Ok(transaction);
     }
 
     [HttpDelete("{id}")]
@@ -68,22 +58,12 @@ public class TransactionsController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, UpdateTransactionDto dto)
     {
-        try
-        {
-            var transaction =
-                await _transactionService.UpdateAsync(id, dto);
+        var transaction =
+            await _transactionService.UpdateAsync(id, dto);
 
-            if (transaction == null)
-                return NotFound();
+        if (transaction == null)
+            return NotFound();
 
-            return Ok(transaction);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
-        }
+        return Ok(transaction);
     }
 }
