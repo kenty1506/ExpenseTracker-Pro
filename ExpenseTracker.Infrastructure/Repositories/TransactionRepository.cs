@@ -69,4 +69,10 @@ public class TransactionRepository : ITransactionRepository
 
         return true;
     }
+    public async Task<IEnumerable<Transaction>> GetAllForDashboardAsync()
+    {
+        return await _context.Transactions
+            .AsNoTracking()
+            .ToListAsync();
+    }
 }

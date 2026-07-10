@@ -10,6 +10,7 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddScoped<ITransactionService, TransactionService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
 
 builder.Services.AddInfrastructureServices(
     builder.Configuration.GetConnectionString("DefaultConnection")!);
