@@ -50,4 +50,18 @@ public class TransactionsController : ControllerBase
 
         return NoContent();
     }
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(
+    int id,
+    UpdateTransactionDto dto)
+    {
+        var transaction =
+            await _transactionService.UpdateAsync(id, dto);
+
+        if (transaction == null)
+            return NotFound();
+
+        return Ok(transaction);
+    }
 }

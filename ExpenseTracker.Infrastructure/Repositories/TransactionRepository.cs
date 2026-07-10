@@ -50,4 +50,23 @@ public class TransactionRepository : ITransactionRepository
 
         return true;
     }
+    public async Task<bool> UpdateAsync(Transaction transaction)
+    {
+        var existingTransaction =
+            await _context.Transactions.FindAsync(transaction.Id);
+
+        if (existingTransaction == null)
+            return false;
+
+        existingTransaction.Type = transaction.Type;
+        existingTransaction.CategoryId = transaction.CategoryId;
+        existingTransaction.Amount = transaction.Amount;
+        existingTransaction.Notes = transaction.Notes;
+        existingTransaction.Date = transaction.Date;
+        existingTransaction.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        return true;
+    }
 }

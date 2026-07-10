@@ -8,4 +8,5 @@ public interface ITransactionRepository
     Task<Transaction?> GetByIdAsync(int id);
     Task<Transaction> CreateAsync(Transaction transaction);
     Task<bool> DeleteAsync(int id);
+    Task<bool> UpdateAsync(Transaction transaction);
 }

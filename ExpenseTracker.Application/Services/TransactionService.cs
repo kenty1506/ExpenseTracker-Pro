@@ -74,4 +74,42 @@ public class TransactionService : ITransactionService
     {
         return await _transactionRepository.DeleteAsync(id);
     }
+
+    public async Task<TransactionDto?> UpdateAsync(
+    int id,
+    UpdateTransactionDto dto)
+    {
+        var existingTransaction =
+            await _transactionRepository.GetByIdAsync(id);
+
+        if (existingTransaction == null)
+            return null;
+
+        existingTransaction.Type = dto.Type;
+        existingTransaction.CategoryId = dto.CategoryId;
+        existingTransaction.Amount = dto.Amount;
+        existingTransaction.Notes = dto.Notes;
+        existingTransaction.Date = dto.Date;
+        existingTransaction.UpdatedAt = DateTime.UtcNow;
+
+        var updated = await _transactionRepository.UpdateAsync(existingTransaction);
+
+        if (!updated)
+            return null;
+
+        var savedTransaction = await _transactionRepository.GetByIdAsync(id);
+
+        if (savedTransaction == null)
+            return null;
+
+        return new TransactionDto
+        {
+            Id = savedTransaction.Id,
+            Type = savedTransaction.Type,
+            Category = savedTransaction.Category?.Name ?? string.Empty,
+            Amount = savedTransaction.Amount,
+            Notes = savedTransaction.Notes,
+            Date = savedTransaction.Date
+        };
+    }
 }
