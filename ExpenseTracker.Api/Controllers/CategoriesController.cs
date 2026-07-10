@@ -54,4 +54,18 @@ public class CategoriesController : ControllerBase
 
         return NoContent();
     }
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(
+    int id,
+    UpdateCategoryDto dto)
+    {
+        var category =
+            await _categoryService.UpdateAsync(id, dto);
+
+        if (category == null)
+            return NotFound();
+
+        return Ok(category);
+    }
 }

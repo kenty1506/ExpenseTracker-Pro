@@ -66,4 +66,32 @@ public class CategoryService : ICategoryService
     {
         return await _categoryRepository.DeleteAsync(id);
     }
+
+    public async Task<CategoryDto?> UpdateAsync(
+    int id,
+    UpdateCategoryDto dto)
+    {
+        var category = await _categoryRepository.GetByIdAsync(id);
+
+        if (category == null)
+            return null;
+
+        category.Name = dto.Name;
+        category.Color = dto.Color;
+        category.Icon = dto.Icon;
+        category.UpdatedAt = DateTime.UtcNow;
+
+        var updated = await _categoryRepository.UpdateAsync(category);
+
+        if (!updated)
+            return null;
+
+        return new CategoryDto
+        {
+            Id = category.Id,
+            Name = category.Name,
+            Color = category.Color,
+            Icon = category.Icon
+        };
+    }
 }
