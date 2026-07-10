@@ -7,10 +7,14 @@ namespace ExpenseTracker.Infrastructure.Identity;
 public class AuthService : IAuthService
 {
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly IJwtService _jwtService;
 
-    public AuthService(UserManager<ApplicationUser> userManager)
+    public AuthService(
+        UserManager<ApplicationUser> userManager,
+        IJwtService jwtService)
     {
         _userManager = userManager;
+        _jwtService = jwtService;
     }
 
     public async Task<AuthResponseDto> RegisterAsync(RegisterUserDto dto)
@@ -49,7 +53,8 @@ public class AuthService : IAuthService
         return new AuthResponseDto
         {
             Success = true,
-            Message = "Registration successful."
+            Message = "Registration successful.",
+            Token = string.Empty
         };
     }
 
@@ -78,10 +83,15 @@ public class AuthService : IAuthService
             };
         }
 
+        var token = _jwtService.GenerateToken(
+            user.Id,
+            user.Email ?? string.Empty);
+
         return new AuthResponseDto
         {
             Success = true,
-            Message = "Login successful."
+            Message = "Login successful.",
+            Token = token
         };
     }
 }
