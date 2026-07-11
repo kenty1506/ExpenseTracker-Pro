@@ -65,4 +65,18 @@ public class ReportsController : ControllerBase
         var transactions = await _reportService.GetLargestTransactionsAsync(limit,type);
         return Ok(transactions);
     }
+
+    [HttpGet("category-comparison")]
+    public async Task<IActionResult>GetCategoryComparison([FromQuery] int year)
+    {
+        var comparison =await _reportService.GetCategoryComparisonAsync(year);
+        return Ok(comparison);
+    }
+
+    [HttpGet("statistics")]
+    public async Task<IActionResult> GetStatistics([FromQuery] int year)
+    {
+        var statistics =await _reportService.GetStatisticsAsync(year);
+        return Ok(statistics);
+    }
 }

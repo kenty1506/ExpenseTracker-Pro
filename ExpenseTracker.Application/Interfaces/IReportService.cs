@@ -12,4 +12,6 @@ public interface IReportService
     Task<IEnumerable<DailySpendingDto>> GetDailySpendingAsync(int year, int month);
     Task<IEnumerable<CalendarSpendingDto>> GetCalendarAsync(int year,int month);
     Task<IEnumerable<LargestTransactionDto>>GetLargestTransactionsAsync(int limit,TransactionType? type);
+    Task<IEnumerable<CategoryComparisonDto>>GetCategoryComparisonAsync(int year);
+    Task<FinancialStatisticsDto> GetStatisticsAsync(int year);
 }

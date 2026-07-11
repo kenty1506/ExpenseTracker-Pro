@@ -389,41 +389,198 @@ public class ReportRepository : IReportRepository
     {
         var query = _context.Transactions
             .AsNoTracking()
-            .Where(transaction =>
-                transaction.UserId == userId);
+            .Where(transaction => transaction.UserId == userId);
 
         if (type.HasValue)
         {
-            query = query.Where(transaction =>transaction.Type == type.Value);
+            query = query.Where(transaction => transaction.Type == type.Value);
         }
+        var transactions = await query
+            .Select(transaction => new LargestTransactionDto
+            {
+                Id = transaction.Id,
+                Date = transaction.Date,
+                Type = transaction.Type,
+                CategoryId = transaction.CategoryId,
 
-        return await query
-            .OrderByDescending(transaction =>transaction.Amount)
-            .ThenByDescending(transaction =>transaction.Date)
-            .Take(limit)
-            .Select(transaction =>
-                new LargestTransactionDto
-                {
-                    Id = transaction.Id,
-                    Date = transaction.Date,
-                    Type = transaction.Type,
-                    CategoryId = transaction.CategoryId,
+                Category = transaction.Category != null
+                    ? transaction.Category.Name
+                    : "Uncategorized",
 
-                    Category = transaction.Category != null
-                        ? transaction.Category.Name
-                        : "Uncategorized",
+                Color = transaction.Category != null
+                    ? transaction.Category.Color
+                    : "#808080",
 
-                    Color = transaction.Category != null
-                        ? transaction.Category.Color
-                        : "#808080",
+                Icon = transaction.Category != null
+                    ? transaction.Category.Icon
+                    : "category",
 
-                    Icon = transaction.Category != null
-                        ? transaction.Category.Icon
-                        : "category",
-
-                    Amount = transaction.Amount,
-                    Notes = transaction.Notes
-                })
+                Amount = transaction.Amount,
+                Notes = transaction.Notes
+            })
             .ToListAsync();
+
+        return transactions
+            .OrderByDescending(transaction =>
+                transaction.Amount)
+            .ThenByDescending(transaction =>
+                transaction.Date)
+            .Take(limit)
+            .ToList();
+    }
+    public async Task<IEnumerable<CategoryComparisonDto>>GetCategoryComparisonAsync(string userId,int year)
+    {
+        var yearStart = new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        var nextYearStart = yearStart.AddYears(1);
+
+        var transactions = await _context.Transactions
+            .AsNoTracking()
+            .Where(transaction =>
+                transaction.UserId == userId &&
+                transaction.Type == TransactionType.Expense &&
+                transaction.Date >= yearStart &&
+                transaction.Date < nextYearStart)
+            .Select(transaction => new
+            {
+                transaction.CategoryId,
+                CategoryName = transaction.Category != null
+                    ? transaction.Category.Name
+                    : "Uncategorized",
+                CategoryColor = transaction.Category != null
+                    ? transaction.Category.Color
+                    : "#808080",
+                CategoryIcon = transaction.Category != null
+                    ? transaction.Category.Icon
+                    : "category",
+                transaction.Date,
+                transaction.Amount
+            })
+            .ToListAsync();
+
+        return transactions
+            .GroupBy(transaction => new
+            {
+                transaction.CategoryId,
+                transaction.CategoryName,
+                transaction.CategoryColor,
+                transaction.CategoryIcon
+            })
+            .Select(categoryGroup =>
+            {
+                var monthlyGroups = categoryGroup
+                    .GroupBy(transaction => transaction.Date.Month)
+                    .ToDictionary(
+                        group => group.Key,
+                        group => new
+                        {
+                            Amount = group.Sum(transaction => transaction.Amount),
+                            Count = group.Count()
+                        });
+
+                var monthlyResults = Enumerable
+                    .Range(1, 12)
+                    .Select(month =>
+                    {
+                        monthlyGroups.TryGetValue(month,out var totals);
+                        return new CategoryMonthlyAmountDto
+                        {
+                            Month = month,
+                            MonthName = CultureInfo
+                                .InvariantCulture
+                                .DateTimeFormat
+                                .GetAbbreviatedMonthName(month),
+                            Amount = totals?.Amount ?? 0,
+                            TransactionCount =totals?.Count ?? 0
+                        };
+                    })
+                    .ToList();
+
+                var totalExpense = categoryGroup.Sum(transaction => transaction.Amount);
+
+                return new CategoryComparisonDto
+                {
+                    CategoryId =categoryGroup.Key.CategoryId,
+                    Category =categoryGroup.Key.CategoryName,
+                    Color =categoryGroup.Key.CategoryColor,
+                    Icon =categoryGroup.Key.CategoryIcon,
+                    TotalExpense = totalExpense,
+                    AverageMonthlyExpense = Math.Round(totalExpense / 12,2),
+                    TransactionCount =categoryGroup.Count(),
+                    Months = monthlyResults
+                };
+            })
+            .OrderByDescending(result =>
+                result.TotalExpense)
+            .ToList();
+    }
+    public async Task<FinancialStatisticsDto> GetStatisticsAsync(string userId,int year)
+    {
+        var yearStart = new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        var nextYearStart = yearStart.AddYears(1);
+
+        var transactions = await _context.Transactions
+            .AsNoTracking()
+            .Where(transaction =>
+                transaction.UserId == userId &&
+                transaction.Date >= yearStart &&
+                transaction.Date < nextYearStart)
+            .Select(transaction => new
+            {
+                transaction.Type,
+                transaction.Amount,
+                transaction.CategoryId,
+                CategoryName = transaction.Category != null ? transaction.Category.Name: "Uncategorized"
+            })
+            .ToListAsync();
+
+        var incomes = transactions
+            .Where(transaction =>
+                transaction.Type == TransactionType.Income)
+            .ToList();
+
+        var expenses = transactions
+            .Where(transaction =>
+                transaction.Type == TransactionType.Expense)
+            .ToList();
+
+        var totalIncome = incomes.Sum(
+            transaction => transaction.Amount);
+
+        var totalExpense = expenses.Sum(
+            transaction => transaction.Amount);
+
+        var topCategory = expenses
+            .GroupBy(transaction => new
+            {
+                transaction.CategoryId,
+                transaction.CategoryName
+            })
+            .Select(group => new
+            {
+                Category = group.Key.CategoryName,
+                Amount = group.Sum(transaction => transaction.Amount)
+            })
+            .OrderByDescending(result => result.Amount)
+            .FirstOrDefault();
+
+        return new FinancialStatisticsDto
+        {
+            Year = year,
+            TotalIncome = totalIncome,
+            TotalExpense = totalExpense,
+            Balance = totalIncome - totalExpense,
+            LargestIncome = incomes.Count == 0 ? 0: incomes.Max(transaction =>transaction.Amount),
+            LargestExpense = expenses.Count == 0 ? 0: expenses.Max(transaction =>transaction.Amount),
+            AverageIncome = incomes.Count == 0 ? 0: Math.Round(incomes.Average(transaction =>transaction.Amount),2),
+            AverageExpense = expenses.Count == 0 ? 0: Math.Round(expenses.Average(transaction =>transaction.Amount),2),
+            AverageTransactionAmount =transactions.Count == 0? 0: Math.Round(transactions.Average(transaction =>transaction.Amount),2),
+            TransactionCount =transactions.Count,
+            IncomeTransactionCount =incomes.Count,
+            ExpenseTransactionCount =expenses.Count,
+            TopExpenseCategory =topCategory?.Category ?? string.Empty,
+            TopExpenseCategoryAmount =topCategory?.Amount ?? 0
+        };
     }
 }
