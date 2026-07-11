@@ -13,4 +13,7 @@ public class Category : BaseEntity
     public string Icon { get; set; } = "category";
 
     public List<Transaction> Transactions { get; set; } = new();
+
+    public List<Budget> Budgets { get; set; } = new();
+
 }
