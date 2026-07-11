@@ -4,6 +4,7 @@ namespace ExpenseTracker.Domain.Entities;
 
 public class Category : BaseEntity
 {
+    public string UserId { get; set; } = string.Empty;
 
     public string Name { get; set; } = string.Empty;
 

@@ -42,8 +42,7 @@ public class TransactionService : ITransactionService
     public async Task<TransactionDto> CreateAsync(
         CreateTransactionDto dto)
     {
-        var category = await _categoryRepository.GetByIdAsync(
-            dto.CategoryId);
+        var category = await _categoryRepository.GetByIdAsync(dto.CategoryId, _currentUserService.UserId);
 
         if (category == null)
         {
@@ -90,8 +89,7 @@ public class TransactionService : ITransactionService
         if (existingTransaction == null)
             return null;
 
-        var category = await _categoryRepository.GetByIdAsync(
-            dto.CategoryId);
+        var category = await _categoryRepository.GetByIdAsync(dto.CategoryId,_currentUserService.UserId);
 
         if (category == null)
         {
