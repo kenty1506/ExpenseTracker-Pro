@@ -99,6 +99,7 @@ builder.Services.AddProblemDetails();
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService,CurrentUserService>();
+builder.Services.AddScoped<IReportService, ReportService>();
 
 var app = builder.Build();
 app.UseExceptionHandler();
