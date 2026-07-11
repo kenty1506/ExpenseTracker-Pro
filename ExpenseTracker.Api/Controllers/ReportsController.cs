@@ -1,4 +1,5 @@
 ﻿using ExpenseTracker.Application.Interfaces;
+using ExpenseTracker.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -17,11 +18,51 @@ public class ReportsController : ControllerBase
     }
 
     [HttpGet("monthly")]
-    public async Task<IActionResult> GetMonthlyReport(
-        [FromQuery] int year)
+    public async Task<IActionResult> GetMonthlyReport([FromQuery] int year)
     {
         var report = await _reportService.GetMonthlyReportAsync(year);
-
         return Ok(report);
+    }
+
+    [HttpGet("top-categories")]
+    public async Task<IActionResult> GetTopCategories([FromQuery] int year,[FromQuery] int limit = 5)
+    {
+        var categories =await _reportService.GetTopCategoriesAsync(year,limit);
+        return Ok(categories);
+    }
+
+    [HttpGet("trends")]
+    public async Task<IActionResult> GetTrend([FromQuery] int year)
+    {
+        var trend =await _reportService.GetTrendAsync(year);
+        return Ok(trend);
+    }
+
+    [HttpGet("cash-flow")]
+    public async Task<IActionResult> GetCashFlow([FromQuery] int year)
+    {
+        var cashFlow =await _reportService.GetCashFlowAsync(year);
+        return Ok(cashFlow);
+    }
+
+    [HttpGet("daily-spending")]
+    public async Task<IActionResult> GetDailySpending([FromQuery] int year, [FromQuery] int month)
+    {
+        var report =await _reportService.GetDailySpendingAsync(year,month);
+        return Ok(report);
+    }
+
+    [HttpGet("calendar")]
+    public async Task<IActionResult> Calendar(int year,int month)
+    {
+        var result =await _reportService.GetCalendarAsync(year,month);
+        return Ok(result);
+    }
+
+    [HttpGet("largest-transactions")]
+    public async Task<IActionResult> GetLargestTransactions([FromQuery] int limit = 10,[FromQuery] TransactionType? type = null)
+    {
+        var transactions = await _reportService.GetLargestTransactionsAsync(limit,type);
+        return Ok(transactions);
     }
 }
