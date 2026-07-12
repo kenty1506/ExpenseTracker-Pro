@@ -15,7 +15,12 @@ public static class InfrastructureServiceRegistration
         string connectionString)
     {
         services.AddDbContext<ExpenseTrackerDbContext>(options =>
-            options.UseSqlite(connectionString));
+            options.UseSqlServer(
+                connectionString,
+                sqlOptions =>
+                {
+            sqlOptions.EnableRetryOnFailure();
+        }));
 
         services.AddIdentityCore<ApplicationUser>(options =>
         {
