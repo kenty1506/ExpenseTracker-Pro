@@ -7,6 +7,8 @@ using Microsoft.OpenApi.Models;
 using System.Text;
 using ExpenseTracker.Api.ExceptionHandling;
 using ExpenseTracker.Api.Services;
+using ExpenseTracker.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -93,9 +95,27 @@ app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
 {
+    using var scope = app.Services.CreateScope();
+
+    var context =
+        scope.ServiceProvider
+            .GetRequiredService<ExpenseTrackerDbContext>();
+
+    await context.Database.MigrateAsync();
+
+    var seeder =
+        scope.ServiceProvider
+            .GetRequiredService<DevelopmentDataSeeder>();
+
+    await seeder.SeedAsync();
+}
+
+if (app.Environment.IsDevelopment())
+{
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
 
 app.UseHttpsRedirection();
 
