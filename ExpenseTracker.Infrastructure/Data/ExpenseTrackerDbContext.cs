@@ -17,11 +17,15 @@ public class ExpenseTrackerDbContext : IdentityDbContext<ApplicationUser>
 
     public DbSet<Budget> Budgets => Set<Budget>();
 
+    public DbSet<RecurringTransaction> RecurringTransactions => Set<RecurringTransaction>();
+
+    public DbSet<Account> Accounts => Set<Account>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-
-        modelBuilder.ApplyConfigurationsFromAssembly(
-            typeof(ExpenseTrackerDbContext).Assembly);
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(ExpenseTrackerDbContext).Assembly);
     }
+
+
 }

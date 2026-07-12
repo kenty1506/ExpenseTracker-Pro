@@ -1,7 +1,6 @@
 ﻿using ExpenseTracker.Domain.Common;
+using ExpenseTracker.Domain.Entities;
 using ExpenseTracker.Domain.Enums;
-
-namespace ExpenseTracker.Domain.Entities;
 
 public class Transaction : BaseEntity
 {
@@ -13,9 +12,17 @@ public class Transaction : BaseEntity
 
     public Category? Category { get; set; }
 
+    public int? AccountId { get; set; }
+
+    public Account? Account { get; set; }
+
     public decimal Amount { get; set; }
 
     public string Notes { get; set; } = string.Empty;
 
-    public DateTime Date { get; set; } = DateTime.Now;
+    public DateTime Date { get; set; }
+
+    public int? RecurringTransactionId { get; set; }
+
+    public RecurringTransaction? RecurringTransaction { get; set; }
 }

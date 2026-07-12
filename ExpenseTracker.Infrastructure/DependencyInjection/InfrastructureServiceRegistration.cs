@@ -36,6 +36,8 @@ public static class InfrastructureServiceRegistration
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<IReportRepository, ReportRepository>();
         services.AddScoped<IBudgetRepository, BudgetRepository>();
+        services.AddScoped<IRecurringTransactionRepository, RecurringTransactionRepository>();
+        services.AddScoped<IAccountRepository, AccountRepository>();
 
         return services;
     }

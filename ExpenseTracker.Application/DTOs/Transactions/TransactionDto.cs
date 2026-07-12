@@ -15,4 +15,7 @@ public class TransactionDto
     public string Notes { get; set; } = string.Empty;
 
     public DateTime Date { get; set; }
+    public int? AccountId { get; set; }
+
+    public string Account { get; set; } = string.Empty;
 }

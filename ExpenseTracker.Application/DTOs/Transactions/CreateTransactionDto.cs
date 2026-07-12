@@ -13,4 +13,7 @@ public class CreateTransactionDto
     public string Notes { get; set; } = string.Empty;
 
     public DateTime Date { get; set; }
+
+    public int AccountId { get; set; }
+
 }

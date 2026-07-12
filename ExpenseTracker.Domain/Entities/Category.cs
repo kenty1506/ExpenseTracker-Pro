@@ -16,4 +16,6 @@ public class Category : BaseEntity
 
     public List<Budget> Budgets { get; set; } = new();
 
+    public List<RecurringTransaction> RecurringTransactions { get; set; } = new();
+
 }

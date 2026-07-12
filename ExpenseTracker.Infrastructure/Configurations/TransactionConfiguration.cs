@@ -21,10 +21,35 @@ public class TransactionConfiguration : IEntityTypeConfiguration<Transaction>
             .HasForeignKey(x => x.CategoryId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.HasOne(x => x.RecurringTransaction)
+            .WithMany(x => x.GeneratedTransactions)
+            .HasForeignKey(x => x.RecurringTransactionId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne(x => x.Account)
+            .WithMany(x => x.Transactions)
+            .HasForeignKey(x => x.AccountId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(x => new
+        {
+            x.UserId,
+            x.AccountId,
+            x.Date
+        });
+
         builder.Property(x => x.UserId)
             .IsRequired()
             .HasMaxLength(450);
 
         builder.HasIndex(x => x.UserId);
+
+        builder.HasIndex(x => new
+            {
+                x.UserId,
+                x.RecurringTransactionId,
+                x.Date
+            })
+            .IsUnique();
     }
 }

@@ -14,18 +14,23 @@ public class TransactionRepository : ITransactionRepository
         _context = context;
     }
 
-    public async Task<IEnumerable<Transaction>> GetAllAsync(string userId)
+    public async Task<IEnumerable<Transaction>> GetAllAsync(
+        string userId)
     {
         return await _context.Transactions
             .Where(x => x.UserId == userId)
             .Include(x => x.Category)
+            .Include(x => x.Account)
             .ToListAsync();
     }
 
-    public async Task<Transaction?> GetByIdAsync(int id, string userId)
+    public async Task<Transaction?> GetByIdAsync(
+        int id,
+        string userId)
     {
         return await _context.Transactions
             .Include(x => x.Category)
+            .Include(x => x.Account)
             .FirstOrDefaultAsync(x =>
                 x.Id == id &&
                 x.UserId == userId);
@@ -71,6 +76,7 @@ public class TransactionRepository : ITransactionRepository
         existingTransaction.Notes = transaction.Notes;
         existingTransaction.Date = transaction.Date;
         existingTransaction.UpdatedAt = DateTime.UtcNow;
+        existingTransaction.AccountId = transaction.AccountId;
 
         await _context.SaveChangesAsync();
 
