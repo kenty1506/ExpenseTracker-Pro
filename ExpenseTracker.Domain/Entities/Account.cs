@@ -28,4 +28,8 @@ public class Account : BaseEntity
     public List<Transfer> OutgoingTransfers { get; set; } = [];
 
     public List<Transfer> IncomingTransfers { get; set; } = [];
+
+    public List<FinancialGoal> FinancialGoals { get; set; } = [];
+
+    public List<GoalContribution> GoalContributions { get; set; } = [];
 }

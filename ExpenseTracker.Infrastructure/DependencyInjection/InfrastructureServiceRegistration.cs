@@ -44,6 +44,7 @@ public static class InfrastructureServiceRegistration
         services.AddScoped<IRecurringTransactionRepository, RecurringTransactionRepository>();
         services.AddScoped<IAccountRepository, AccountRepository>();
         services.AddScoped<ITransferRepository, TransferRepository>();
+        services.AddScoped<IFinancialGoalRepository,FinancialGoalRepository>();
         services.AddScoped<DevelopmentDataSeeder>();
         
 

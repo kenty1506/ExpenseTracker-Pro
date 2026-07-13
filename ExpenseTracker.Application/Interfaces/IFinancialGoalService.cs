@@ -1,0 +1,22 @@
+﻿using ExpenseTracker.Application.DTOs.FinancialGoals;
+
+namespace ExpenseTracker.Application.Interfaces;
+
+public interface IFinancialGoalService
+{
+    Task<IEnumerable<FinancialGoalDto>> GetAllAsync();
+
+    Task<FinancialGoalDto?> GetByIdAsync(int id);
+
+    Task<FinancialGoalDto> CreateAsync(CreateFinancialGoalDto dto);
+
+    Task<FinancialGoalDto?> UpdateAsync(int id,UpdateFinancialGoalDto dto);
+
+    Task<bool> DeleteAsync(int id);
+
+    Task<GoalContributionDto?> AddContributionAsync(int financialGoalId,AddGoalContributionDto dto);
+
+    Task<bool> DeleteContributionAsync(int financialGoalId,int contributionId);
+
+    Task<FinancialGoalsSummaryDto> GetSummaryAsync();
+}

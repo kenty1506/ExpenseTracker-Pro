@@ -23,6 +23,10 @@ public class ExpenseTrackerDbContext : IdentityDbContext<ApplicationUser>
 
     public DbSet<Transfer> Transfers => Set<Transfer>();
 
+    public DbSet<FinancialGoal> FinancialGoals => Set<FinancialGoal>();
+
+    public DbSet<GoalContribution> GoalContributions => Set<GoalContribution>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

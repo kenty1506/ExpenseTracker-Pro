@@ -89,6 +89,7 @@ builder.Services.AddScoped<IBudgetService, BudgetService>();
 builder.Services.AddScoped<IRecurringTransactionService, RecurringTransactionService>();
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<ITransferService,TransferService>();
+builder.Services.AddScoped<IFinancialGoalService,FinancialGoalService>();
 
 var app = builder.Build();
 app.UseExceptionHandler();
