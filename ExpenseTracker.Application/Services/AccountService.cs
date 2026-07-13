@@ -162,49 +162,30 @@ public class AccountService : IAccountService
 
     public async Task<AccountSummaryDto> GetSummaryAsync()
     {
-        var accounts =
-            (await _accountRepository.GetAllAsync(
-                _currentUserService.UserId))
-            .Where(account =>
-                account.IsActive)
+        var accounts =(await _accountRepository.GetAllAsync(_currentUserService.UserId))
+            .Where(account =>account.IsActive)
             .ToList();
 
-        var accountDtos =
-            accounts.Select(MapToDto).ToList();
+        var accountDtos =accounts.Select(MapToDto).ToList();
 
-        var includedAccounts =
-            accountDtos
-                .Where(account =>
-                    account.IncludeInNetWorth)
+        var includedAccounts =accountDtos
+                .Where(account =>account.IncludeInNetWorth)
                 .ToList();
 
-        var totalLiabilities =
-            includedAccounts
-                .Where(account =>
-                    account.Type ==
-                    AccountType.CreditCard)
-                .Sum(account =>
-                    Math.Abs(
-                        Math.Min(
-                            account.CurrentBalance,
-                            0)));
+        var totalLiabilities =includedAccounts
+                .Where(account =>account.Type ==AccountType.CreditCard)
+                .Sum(account =>Math.Abs(Math.Min(account.CurrentBalance, 0)));
 
-        var totalAssets =
-            includedAccounts
-                .Where(account =>
-                    account.Type !=
-                    AccountType.CreditCard)
-                .Sum(account =>
-                    account.CurrentBalance);
+        var totalAssets =includedAccounts
+                .Where(account =>account.Type !=AccountType.CreditCard)
+                .Sum(account =>account.CurrentBalance);
 
         return new AccountSummaryDto
         {
             TotalAssets = totalAssets,
             TotalLiabilities = totalLiabilities,
-            NetWorth =
-                totalAssets - totalLiabilities,
-            ActiveAccountCount =
-                accounts.Count,
+            NetWorth =totalAssets - totalLiabilities,
+            ActiveAccountCount = accounts.Count,
             Accounts = accountDtos
         };
     }
@@ -215,12 +196,17 @@ public class AccountService : IAccountService
                 .Where(transaction => transaction.Type ==TransactionType.Income)
                 .Sum(transaction => transaction.Amount);
 
-        var expense =
-            account.Transactions
+        var expense =account.Transactions
                 .Where(transaction => transaction.Type ==TransactionType.Expense)
                 .Sum(transaction =>transaction.Amount);
 
-        var currentBalance = account.OpeningBalance + income - expense;
+        var incomingTransfers =account.IncomingTransfers
+                .Sum(transfer =>transfer.Amount);
+
+        var outgoingTransfers = account.OutgoingTransfers
+                .Sum(transfer => transfer.Amount);
+
+        var currentBalance = account.OpeningBalance+ income - expense + incomingTransfers - outgoingTransfers;
 
         return new AccountDto
         {
@@ -235,6 +221,7 @@ public class AccountService : IAccountService
             IncludeInNetWorth =account.IncludeInNetWorth,
             IsActive =account.IsActive,
             TransactionCount =account.Transactions.Count
+
         };
     }
 

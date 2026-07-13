@@ -21,6 +21,8 @@ public class ExpenseTrackerDbContext : IdentityDbContext<ApplicationUser>
 
     public DbSet<Account> Accounts => Set<Account>();
 
+    public DbSet<Transfer> Transfers => Set<Transfer>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

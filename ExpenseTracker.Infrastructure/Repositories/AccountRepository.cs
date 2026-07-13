@@ -19,6 +19,8 @@ public class AccountRepository : IAccountRepository
     {
         return await _context.Accounts
             .AsNoTracking()
+            .Include(account => account.IncomingTransfers)
+            .Include(account => account.OutgoingTransfers)
             .Where(account =>account.UserId == userId)
             .Include(account =>account.Transactions)
             .OrderByDescending(account =>account.IsActive)
@@ -30,6 +32,8 @@ public class AccountRepository : IAccountRepository
     {
         return await _context.Accounts
             .AsNoTracking()
+            .Include(account => account.IncomingTransfers)
+            .Include(account => account.OutgoingTransfers)
             .Include(account => account.Transactions)
             .FirstOrDefaultAsync(account =>account.Id == id &&account.UserId == userId);
     }

@@ -24,4 +24,8 @@ public class Account : BaseEntity
     public List<Transaction> Transactions { get; set; } = [];
 
     public List<RecurringTransaction> RecurringTransactions { get; set; } = [];
+
+    public List<Transfer> OutgoingTransfers { get; set; } = [];
+
+    public List<Transfer> IncomingTransfers { get; set; } = [];
 }
