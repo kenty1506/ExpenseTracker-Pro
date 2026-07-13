@@ -27,6 +27,8 @@ public class ExpenseTrackerDbContext : IdentityDbContext<ApplicationUser>
 
     public DbSet<GoalContribution> GoalContributions => Set<GoalContribution>();
 
+    public DbSet<Notification> Notifications => Set<Notification>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

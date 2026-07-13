@@ -32,4 +32,13 @@ public class DashboardController : ControllerBase
 
         return Ok(breakdown);
     }
+
+    [HttpGet("v2")]
+    public async Task<IActionResult> GetDashboardV2()
+    {
+        var dashboard =
+            await _dashboardService.GetDashboardV2Async();
+
+        return Ok(dashboard);
+    }
 }

@@ -9,6 +9,7 @@ using ExpenseTracker.Api.ExceptionHandling;
 using ExpenseTracker.Api.Services;
 using ExpenseTracker.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using ExpenseTracker.Api.BackgroundServices;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -90,6 +91,11 @@ builder.Services.AddScoped<IRecurringTransactionService, RecurringTransactionSer
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<ITransferService,TransferService>();
 builder.Services.AddScoped<IFinancialGoalService,FinancialGoalService>();
+builder.Services.AddScoped<INotificationService,NotificationService>();
+builder.Services.AddScoped<INotificationEngineService, NotificationEngineService>();
+builder.Services.AddHostedService<ExpenseTrackerBackgroundService>();
+builder.Services.AddScoped<ISystemBackgroundProcessor, SystemBackgroundProcessor>();
+
 
 var app = builder.Build();
 app.UseExceptionHandler();

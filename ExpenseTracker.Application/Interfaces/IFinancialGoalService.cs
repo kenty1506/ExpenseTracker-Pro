@@ -15,8 +15,10 @@ public interface IFinancialGoalService
     Task<bool> DeleteAsync(int id);
 
     Task<GoalContributionDto?> AddContributionAsync(int financialGoalId,AddGoalContributionDto dto);
+    Task<IEnumerable<FinancialGoalDto>> GetAllForUserAsync(string userId);
 
     Task<bool> DeleteContributionAsync(int financialGoalId,int contributionId);
 
     Task<FinancialGoalsSummaryDto> GetSummaryAsync();
+
 }

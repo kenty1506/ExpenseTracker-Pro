@@ -273,30 +273,68 @@ public class RecurringTransactionService: IRecurringTransactionService
             IsActive = recurringTransaction.IsActive
         };
     }
-    public async Task<RecurringGenerationResultDto> GenerateDueAsync(DateTime? throughDate = null)
+    public Task<RecurringGenerationResultDto> GenerateDueAsync(
+    DateTime? throughDate = null)
     {
-        var userId = _currentUserService.UserId;
-        var processedThrough = (throughDate ?? DateTime.UtcNow).Date;
-        var generatedItems =new List<GeneratedRecurringTransactionDto>();
+        return GenerateDueForUserAsync(
+            _currentUserService.UserId,
+            throughDate);
+    }
+
+    public async Task<RecurringGenerationResultDto>
+        GenerateDueForUserAsync(
+            string userId,
+            DateTime? throughDate = null)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            throw new ArgumentException(
+                "A valid user ID is required.",
+                nameof(userId));
+        }
+
+        var processedThrough =
+            (throughDate ?? DateTime.UtcNow).Date;
+
+        var generatedItems =
+            new List<GeneratedRecurringTransactionDto>();
 
         while (true)
         {
             var dueItems =
-                (await _recurringTransactionRepository.GetDueAsync(userId,processedThrough)).ToList();
+                (await _recurringTransactionRepository.GetDueAsync(
+                    userId,
+                    processedThrough))
+                .ToList();
 
             if (dueItems.Count == 0)
                 break;
+
+            var processedAnyItem = false;
+
             foreach (var recurring in dueItems)
             {
-                var occurrenceDate =recurring.NextRunDate.Date;
-                var nextRunDate =CalculateNextRunDate(occurrenceDate,recurring.DayOfMonth);
+                var occurrenceDate =
+                    recurring.NextRunDate.Date;
 
-                var generatedTransaction =await _recurringTransactionRepository
+                var nextRunDate =
+                    CalculateNextRunDate(
+                        occurrenceDate,
+                        recurring.DayOfMonth);
+
+                var generatedTransaction =
+                    await _recurringTransactionRepository
                         .GenerateOccurrenceAsync(
                             recurring.Id,
                             userId,
                             occurrenceDate,
                             nextRunDate);
+
+                /*
+                 * The repository advances the schedule even when an existing
+                 * generated occurrence is detected.
+                 */
+                processedAnyItem = true;
 
                 if (generatedTransaction == null)
                     continue;
@@ -304,15 +342,27 @@ public class RecurringTransactionService: IRecurringTransactionService
                 generatedItems.Add(
                     new GeneratedRecurringTransactionDto
                     {
-                        RecurringTransactionId =recurring.Id,
-                        TransactionId =generatedTransaction.Id,
-                        Category =recurring.Category?.Name?? string.Empty,
-                        Amount =generatedTransaction.Amount,
-                        OccurrenceDate =occurrenceDate,
-                        NextRunDate =nextRunDate
+                        RecurringTransactionId =
+                            recurring.Id,
+                        TransactionId =
+                            generatedTransaction.Id,
+                        Category =
+                            recurring.Category?.Name
+                            ?? string.Empty,
+                        Amount =
+                            generatedTransaction.Amount,
+                        OccurrenceDate =
+                            occurrenceDate,
+                        NextRunDate =
+                            nextRunDate
                     });
             }
+
+            // Defensive protection against an unexpected infinite loop.
+            if (!processedAnyItem)
+                break;
         }
+
         return new RecurringGenerationResultDto
         {
             ProcessedThrough = processedThrough,
@@ -321,8 +371,26 @@ public class RecurringTransactionService: IRecurringTransactionService
         };
     }
 
-    public async Task<IEnumerable<UpcomingRecurringTransactionDto>>GetUpcomingAsync(int days)
+    public Task<IEnumerable<UpcomingRecurringTransactionDto>>
+    GetUpcomingAsync(int days)
     {
+        return GetUpcomingForUserAsync(
+            _currentUserService.UserId,
+            days);
+    }
+
+    public async Task<IEnumerable<UpcomingRecurringTransactionDto>>
+        GetUpcomingForUserAsync(
+            string userId,
+            int days)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            throw new ArgumentException(
+                "A valid user ID is required.",
+                nameof(userId));
+        }
+
         if (days < 1 || days > 365)
         {
             throw new ArgumentException(
@@ -335,7 +403,7 @@ public class RecurringTransactionService: IRecurringTransactionService
         var recurringTransactions =
             await _recurringTransactionRepository
                 .GetUpcomingAsync(
-                    _currentUserService.UserId,
+                    userId,
                     today,
                     throughDate);
 
@@ -349,12 +417,23 @@ public class RecurringTransactionService: IRecurringTransactionService
                 {
                     Id = recurring.Id,
                     Type = recurring.Type,
+
                     CategoryId = recurring.CategoryId,
-                    Category = recurring.Category?.Name?? string.Empty,
-                    Color = recurring.Category?.Color?? string.Empty,
-                    Icon = recurring.Category?.Icon?? string.Empty,
+                    Category =
+                        recurring.Category?.Name
+                        ?? string.Empty,
+                    Color =
+                        recurring.Category?.Color
+                        ?? string.Empty,
+                    Icon =
+                        recurring.Category?.Icon
+                        ?? string.Empty,
+
                     AccountId = recurring.AccountId,
-                    Account = recurring.Account?.Name?? string.Empty,
+                    Account =
+                        recurring.Account?.Name
+                        ?? string.Empty,
+
                     Amount = recurring.Amount,
                     Notes = recurring.Notes,
                     NextRunDate = recurring.NextRunDate,

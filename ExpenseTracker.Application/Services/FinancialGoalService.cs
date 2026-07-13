@@ -7,14 +7,9 @@ namespace ExpenseTracker.Application.Services;
 
 public class FinancialGoalService : IFinancialGoalService
 {
-    private readonly IFinancialGoalRepository
-        _financialGoalRepository;
-
-    private readonly IAccountRepository
-        _accountRepository;
-
-    private readonly ICurrentUserService
-        _currentUserService;
+    private readonly IFinancialGoalRepository _financialGoalRepository;
+    private readonly IAccountRepository _accountRepository;
+    private readonly ICurrentUserService _currentUserService;
 
     public FinancialGoalService(
         IFinancialGoalRepository financialGoalRepository,
@@ -26,9 +21,26 @@ public class FinancialGoalService : IFinancialGoalService
         _currentUserService = currentUserService;
     }
 
-    public async Task<IEnumerable<FinancialGoalDto>> GetAllAsync()
+    public Task<IEnumerable<FinancialGoalDto>> GetAllAsync()
     {
-        var goals =await _financialGoalRepository.GetAllAsync(_currentUserService.UserId);
+        return GetAllForUserAsync(
+            _currentUserService.UserId);
+    }
+
+    public async Task<IEnumerable<FinancialGoalDto>>
+        GetAllForUserAsync(string userId)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            throw new ArgumentException(
+                "A valid user ID is required.",
+                nameof(userId));
+        }
+
+        var goals =
+            await _financialGoalRepository.GetAllAsync(
+                userId);
+
         return goals.Select(MapToDto);
     }
 
@@ -37,6 +49,7 @@ public class FinancialGoalService : IFinancialGoalService
         var goal =await _financialGoalRepository.GetByIdAsync(id,_currentUserService.UserId);
         return goal == null ? null: MapToDto(goal);
     }
+
 
     public async Task<FinancialGoalDto> CreateAsync(CreateFinancialGoalDto dto)
     {

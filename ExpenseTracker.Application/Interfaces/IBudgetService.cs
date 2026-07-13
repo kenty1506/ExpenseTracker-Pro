@@ -11,5 +11,6 @@ public interface IBudgetService
     Task<bool> DeleteAsync(int id);
     Task<IEnumerable<BudgetSummaryDto>> GetSummaryAsync(int year, int month);
     Task<IEnumerable<BudgetAlertDto>> GetAlertsAsync(int year, int month);
+    Task<IEnumerable<BudgetAlertDto>> GetAlertsForUserAsync(string userId,int year,int month);
     Task<IEnumerable<BudgetVsActualDto>> GetBudgetVsActualAsync(int year,int month);
 }

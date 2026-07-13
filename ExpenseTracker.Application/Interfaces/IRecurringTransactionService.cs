@@ -16,4 +16,9 @@ public interface IRecurringTransactionService
 
     Task<RecurringGenerationResultDto> GenerateDueAsync(DateTime? throughDate = null);
     Task<IEnumerable<UpcomingRecurringTransactionDto>>GetUpcomingAsync(int days);
+    Task<IEnumerable<UpcomingRecurringTransactionDto>>GetUpcomingForUserAsync(string userId, int days);
+
+    Task<RecurringGenerationResultDto> GenerateDueForUserAsync(string userId, DateTime? throughDate = null);
+
+
 }

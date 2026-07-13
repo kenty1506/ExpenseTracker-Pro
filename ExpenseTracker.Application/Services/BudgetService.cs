@@ -118,84 +118,178 @@ public class BudgetService : IBudgetService
             Amount = budget.Amount
         };
     }
-    public async Task<IEnumerable<BudgetSummaryDto>>GetSummaryAsync(int year,int month)
+    public Task<IEnumerable<BudgetSummaryDto>> GetSummaryAsync(
+    int year,
+    int month)
     {
-        if (year < 2000 ||year > DateTime.UtcNow.Year + 1)
+        return GetSummaryForUserAsync(
+            _currentUserService.UserId,
+            year,
+            month);
+    }
+
+    private async Task<IEnumerable<BudgetSummaryDto>>
+        GetSummaryForUserAsync(
+            string userId,
+            int year,
+            int month)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
         {
-            throw new ArgumentException("Please provide a valid budget year.");
+            throw new ArgumentException(
+                "A valid user ID is required.",
+                nameof(userId));
         }
+
+        if (year < 2000 ||
+            year > DateTime.UtcNow.Year + 1)
+        {
+            throw new ArgumentException(
+                "Please provide a valid budget year.");
+        }
+
         if (month < 1 || month > 12)
         {
-            throw new ArgumentException("The month must be between 1 and 12.");
+            throw new ArgumentException(
+                "The month must be between 1 and 12.");
         }
-        var userId = _currentUserService.UserId;
-        var budgets = await _budgetRepository.GetByMonthAsync(userId,year,month);
-        var monthStart = new DateTime(year,month,1,0,0,0,DateTimeKind.Utc);
-        var nextMonthStart = monthStart.AddMonths(1);
-        var transactions = await _transactionRepository.GetAllAsync( userId);
+
+        var budgets =
+            await _budgetRepository.GetByMonthAsync(
+                userId,
+                year,
+                month);
+
+        var monthStart = new DateTime(
+            year,
+            month,
+            1,
+            0,
+            0,
+            0,
+            DateTimeKind.Utc);
+
+        var nextMonthStart =
+            monthStart.AddMonths(1);
+
+        var transactions =
+            await _transactionRepository.GetAllAsync(
+                userId);
 
         var monthlyExpenses = transactions
             .Where(transaction =>
                 transaction.Type ==
-                    ExpenseTracker.Domain.Enums.TransactionType.Expense &&
+                    ExpenseTracker.Domain.Enums
+                        .TransactionType.Expense &&
                 transaction.Date >= monthStart &&
                 transaction.Date < nextMonthStart)
             .ToList();
 
-        return budgets.Select(budget =>
-        {
-            var categoryTransactions = monthlyExpenses
-    .Where(transaction =>
-        transaction.CategoryId == budget.CategoryId)
-    .ToList();
-
-            var actual = categoryTransactions.Sum(transaction => transaction.Amount);
-            var remaining = budget.Amount - actual;
-            var percentageUsed = budget.Amount <= 0? 0: Math.Round(actual / budget.Amount * 100,2);
-
-            return new BudgetSummaryDto
+        return budgets
+            .Select(budget =>
             {
-                BudgetId = budget.Id,
-                CategoryId = budget.CategoryId,
-                Category = budget.Category?.Name ?? string.Empty,
-                Color = budget.Category?.Color ?? string.Empty,
-                Icon = budget.Category?.Icon ?? string.Empty,
-                Budget = budget.Amount,
-                Actual = actual,
-                Remaining = remaining,
-                PercentageUsed = percentageUsed,
-                IsOverBudget = actual > budget.Amount,
-                TransactionCount = categoryTransactions.Count
-            };
-        })
-        .OrderByDescending(summary => summary.PercentageUsed)
-        .ToList();
+                var categoryTransactions =
+                    monthlyExpenses
+                        .Where(transaction =>
+                            transaction.CategoryId ==
+                            budget.CategoryId)
+                        .ToList();
+
+                var actual =
+                    categoryTransactions.Sum(
+                        transaction =>
+                            transaction.Amount);
+
+                var remaining =
+                    budget.Amount - actual;
+
+                var percentageUsed =
+                    budget.Amount <= 0
+                        ? 0
+                        : Math.Round(
+                            actual /
+                            budget.Amount *
+                            100,
+                            2);
+
+                return new BudgetSummaryDto
+                {
+                    BudgetId = budget.Id,
+                    CategoryId = budget.CategoryId,
+                    Category =
+                        budget.Category?.Name ??
+                        string.Empty,
+                    Color =
+                        budget.Category?.Color ??
+                        string.Empty,
+                    Icon =
+                        budget.Category?.Icon ??
+                        string.Empty,
+                    Budget = budget.Amount,
+                    Actual = actual,
+                    Remaining = remaining,
+                    PercentageUsed =
+                        percentageUsed,
+                    IsOverBudget =
+                        actual > budget.Amount,
+                    TransactionCount =
+                        categoryTransactions.Count
+                };
+            })
+            .OrderByDescending(summary =>
+                summary.PercentageUsed)
+            .ToList();
     }
-    public async Task<IEnumerable<BudgetAlertDto>> GetAlertsAsync(int year,int month)
+
+    public Task<IEnumerable<BudgetAlertDto>> GetAlertsAsync(
+    int year,
+    int month)
     {
-        var summaries = await GetSummaryAsync(year, month);
+        return GetAlertsForUserAsync(
+            _currentUserService.UserId,
+            year,
+            month);
+    }
+
+    public async Task<IEnumerable<BudgetAlertDto>>
+        GetAlertsForUserAsync(
+            string userId,
+            int year,
+            int month)
+    {
+        var summaries =
+            await GetSummaryForUserAsync(
+                userId,
+                year,
+                month);
 
         return summaries
             .Select(summary =>
             {
-                var alertLevel = summary.PercentageUsed switch
-                {
-                    >= 100 => "Over Budget",
-                    >= 80 => "Warning",
-                    _ => "Safe"
-                };
+                var alertLevel =
+                    summary.PercentageUsed switch
+                    {
+                        >= 100 => "Over Budget",
+                        >= 80 => "Warning",
+                        _ => "Safe"
+                    };
 
-                var message = alertLevel switch
-                {
-                    "Over Budget" =>
-                        $"You are over budget by {Math.Abs(summary.Remaining):N2}.",
+                var message =
+                    alertLevel switch
+                    {
+                        "Over Budget" =>
+                            $"You are over budget by " +
+                            $"{Math.Abs(summary.Remaining):N2}.",
 
-                    "Warning" =>
-                        $"You have used {summary.PercentageUsed:N2}% of this budget.",
+                        "Warning" =>
+                            $"You have used " +
+                            $"{summary.PercentageUsed:N2}% " +
+                            $"of this budget.",
 
-                    _ =>
-                        $"You have {summary.Remaining:N2} remaining."
-                };
+                        _ =>
+                            $"You have " +
+                            $"{summary.Remaining:N2} remaining."
+                    };
 
                 return new BudgetAlertDto
                 {
@@ -206,7 +300,8 @@ public class BudgetService : IBudgetService
                     Budget = summary.Budget,
                     Actual = summary.Actual,
                     Remaining = summary.Remaining,
-                    PercentageUsed = summary.PercentageUsed,
+                    PercentageUsed =
+                        summary.PercentageUsed,
                     AlertLevel = alertLevel,
                     Message = message
                 };
