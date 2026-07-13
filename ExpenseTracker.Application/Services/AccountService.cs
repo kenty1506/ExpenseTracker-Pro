@@ -27,7 +27,7 @@ public class AccountService : IAccountService
         return accounts.Select(MapToDto);
     }
 
-    public async Task<AccountDto?> GetByIdAsync(int id)
+    public async Task<AccountDetailsDto?> GetByIdAsync(int id)
     {
         var account =
             await _accountRepository.GetByIdAsync(
@@ -36,14 +36,14 @@ public class AccountService : IAccountService
 
         return account == null
             ? null
-            : MapToDto(account);
+            : MapToDetailsDto(account);
     }
 
     public async Task<AccountDto> CreateAsync(
         CreateAccountDto dto)
     {
         ValidateAccountType(dto.Type);
-
+        
         var userId = _currentUserService.UserId;
         var name = dto.Name.Trim();
 
@@ -232,5 +232,86 @@ public class AccountService : IAccountService
         {
             throw new ArgumentException("Please provide a valid account type.");
         }
+    }
+
+    private static AccountDetailsDto MapToDetailsDto(Account account)
+    {
+        var income = account.Transactions
+            .Where(transaction =>
+                transaction.Type == TransactionType.Income)
+            .Sum(transaction => transaction.Amount);
+
+        var expense = account.Transactions
+            .Where(transaction =>
+                transaction.Type == TransactionType.Expense)
+            .Sum(transaction => transaction.Amount);
+
+        var incomingTransfers = account.IncomingTransfers
+            .Sum(transfer => transfer.Amount);
+
+        var outgoingTransfers = account.OutgoingTransfers
+            .Sum(transfer => transfer.Amount);
+
+        var currentBalance =
+            account.OpeningBalance
+            + income
+            - expense
+            + incomingTransfers
+            - outgoingTransfers;
+
+        var incomingActivities = account.IncomingTransfers
+            .Select(transfer =>
+                new AccountTransferActivityDto
+                {
+                    TransferId = transfer.Id,
+                    Direction = "Incoming",
+                    OtherAccountId = transfer.FromAccountId,
+                    OtherAccount =
+                        transfer.FromAccount?.Name
+                        ?? string.Empty,
+                    Amount = transfer.Amount,
+                    TransferDate = transfer.TransferDate,
+                    Notes = transfer.Notes
+                });
+
+        var outgoingActivities = account.OutgoingTransfers
+            .Select(transfer =>
+                new AccountTransferActivityDto
+                {
+                    TransferId = transfer.Id,
+                    Direction = "Outgoing",
+                    OtherAccountId = transfer.ToAccountId,
+                    OtherAccount =
+                        transfer.ToAccount?.Name
+                        ?? string.Empty,
+                    Amount = transfer.Amount,
+                    TransferDate = transfer.TransferDate,
+                    Notes = transfer.Notes
+                });
+
+        var recentTransfers = incomingActivities
+            .Concat(outgoingActivities)
+            .OrderByDescending(transfer =>
+                transfer.TransferDate)
+            .ThenByDescending(transfer =>
+                transfer.TransferId)
+            .Take(10)
+            .ToList();
+
+        return new AccountDetailsDto
+        {
+            Id = account.Id,
+            Name = account.Name,
+            Type = account.Type,
+            OpeningBalance = account.OpeningBalance,
+            CurrentBalance = currentBalance,
+            Currency = account.Currency,
+            Color = account.Color,
+            Icon = account.Icon,
+            IncludeInNetWorth = account.IncludeInNetWorth,
+            IsActive = account.IsActive,
+            TransactionCount = account.Transactions.Count,
+            RecentTransfers = recentTransfers
+        };
     }
 }

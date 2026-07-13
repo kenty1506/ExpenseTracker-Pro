@@ -6,7 +6,7 @@ public interface IAccountService
 {
     Task<IEnumerable<AccountDto>> GetAllAsync();
 
-    Task<AccountDto?> GetByIdAsync(int id);
+    Task<AccountDetailsDto?> GetByIdAsync(int id);
 
     Task<AccountDto> CreateAsync(CreateAccountDto dto);
 

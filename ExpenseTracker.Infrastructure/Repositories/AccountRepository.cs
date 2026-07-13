@@ -28,14 +28,16 @@ public class AccountRepository : IAccountRepository
             .ToListAsync();
     }
 
-    public async Task<Account?> GetByIdAsync(int id,string userId)
+    public async Task<Account?> GetByIdAsync(int id, string userId)
     {
         return await _context.Accounts
             .AsNoTracking()
-            .Include(account => account.IncomingTransfers)
-            .Include(account => account.OutgoingTransfers)
             .Include(account => account.Transactions)
-            .FirstOrDefaultAsync(account =>account.Id == id &&account.UserId == userId);
+            .Include(account => account.IncomingTransfers)
+            .ThenInclude(transfer => transfer.FromAccount)
+            .Include(account => account.OutgoingTransfers)
+            .ThenInclude(transfer => transfer.ToAccount)
+            .FirstOrDefaultAsync(account =>account.Id == id && account.UserId == userId);
     }
 
     public async Task<Account?> GetByNameAsync(string name,string userId)
