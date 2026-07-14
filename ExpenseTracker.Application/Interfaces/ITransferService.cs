@@ -1,4 +1,5 @@
-﻿using ExpenseTracker.Application.DTOs.Transfers;
+﻿using ExpenseTracker.Application.Common;
+using ExpenseTracker.Application.DTOs.Transfers;
 
 namespace ExpenseTracker.Application.Interfaces;
 
@@ -16,4 +17,7 @@ public interface ITransferService
         UpdateTransferDto dto);
 
     Task<bool> DeleteAsync(int id);
+
+    Task<PagedResult<TransferDto>> GetPagedAsync(TransferQueryDto query);
+
 }

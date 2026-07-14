@@ -1,4 +1,5 @@
 ﻿using ExpenseTracker.Application.DTOs.FinancialGoals;
+using ExpenseTracker.Application.Common;
 
 namespace ExpenseTracker.Application.Interfaces;
 
@@ -20,5 +21,7 @@ public interface IFinancialGoalService
     Task<bool> DeleteContributionAsync(int financialGoalId,int contributionId);
 
     Task<FinancialGoalsSummaryDto> GetSummaryAsync();
+    Task<PagedResult<FinancialGoalDto>> GetPagedAsync(
+    FinancialGoalQueryDto query);
 
 }

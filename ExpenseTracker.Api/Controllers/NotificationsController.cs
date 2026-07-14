@@ -1,6 +1,8 @@
-﻿using ExpenseTracker.Application.Interfaces;
+﻿using ExpenseTracker.Application.DTOs.Notifications;
+using ExpenseTracker.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+
 
 namespace ExpenseTracker.Api.Controllers;
 
@@ -105,6 +107,15 @@ public class NotificationsController : ControllerBase
     {
         var result =
             await _notificationEngineService.GenerateAsync();
+
+        return Ok(result);
+    }
+    [HttpGet("paged")]
+    public async Task<IActionResult> GetPaged(
+    [FromQuery] NotificationQueryDto query)
+    {
+        var result =
+            await _notificationService.GetPagedAsync(query);
 
         return Ok(result);
     }

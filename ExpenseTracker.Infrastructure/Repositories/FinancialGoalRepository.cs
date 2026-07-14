@@ -1,5 +1,8 @@
-﻿using ExpenseTracker.Application.Interfaces;
+﻿using ExpenseTracker.Application.Common;
+using ExpenseTracker.Application.DTOs.FinancialGoals;
+using ExpenseTracker.Application.Interfaces;
 using ExpenseTracker.Domain.Entities;
+using ExpenseTracker.Domain.Enums;
 using ExpenseTracker.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -143,5 +146,330 @@ public class FinancialGoalRepository : IFinancialGoalRepository
         await _context.SaveChangesAsync();
 
         return true;
+    }
+    public async Task<PagedResult<FinancialGoal>> GetPagedAsync(
+    string userId,
+    FinancialGoalQueryDto query)
+    {
+        var goals = _context.FinancialGoals
+            .AsNoTracking()
+            .Where(goal =>
+                goal.UserId == userId)
+            .Include(goal =>
+                goal.Account)
+            .Include(goal =>
+                goal.Contributions)
+                    .ThenInclude(contribution =>
+                        contribution.Account)
+            .AsQueryable();
+
+        if (query.Status.HasValue)
+        {
+            goals = goals.Where(goal =>
+                goal.Status == query.Status.Value);
+        }
+
+        if (query.AccountId.HasValue)
+        {
+            goals = goals.Where(goal =>
+                goal.AccountId == query.AccountId.Value);
+        }
+
+        if (query.TargetDateFrom.HasValue)
+        {
+            var fromDate =
+                query.TargetDateFrom.Value.Date;
+
+            goals = goals.Where(goal =>
+                goal.TargetDate.HasValue &&
+                goal.TargetDate.Value >= fromDate);
+        }
+
+        if (query.TargetDateTo.HasValue)
+        {
+            var nextDay =
+                query.TargetDateTo.Value.Date.AddDays(1);
+
+            goals = goals.Where(goal =>
+                goal.TargetDate.HasValue &&
+                goal.TargetDate.Value < nextDay);
+        }
+
+        if (query.MinTargetAmount.HasValue)
+        {
+            goals = goals.Where(goal =>
+                goal.TargetAmount >=
+                query.MinTargetAmount.Value);
+        }
+
+        if (query.MaxTargetAmount.HasValue)
+        {
+            goals = goals.Where(goal =>
+                goal.TargetAmount <=
+                query.MaxTargetAmount.Value);
+        }
+
+        if (query.MinSavedAmount.HasValue)
+        {
+            var minimumSaved =
+                query.MinSavedAmount.Value;
+
+            goals = goals.Where(goal =>
+                goal.StartingAmount
+                + (
+                    goal.Contributions
+                        .Sum(contribution =>
+                            (decimal?)contribution.Amount)
+                    ?? 0m
+                )
+                >= minimumSaved);
+        }
+
+        if (query.MaxSavedAmount.HasValue)
+        {
+            var maximumSaved =
+                query.MaxSavedAmount.Value;
+
+            goals = goals.Where(goal =>
+                goal.StartingAmount
+                + (
+                    goal.Contributions
+                        .Sum(contribution =>
+                            (decimal?)contribution.Amount)
+                    ?? 0m
+                )
+                <= maximumSaved);
+        }
+
+        if (query.IsCompleted.HasValue)
+        {
+            if (query.IsCompleted.Value)
+            {
+                goals = goals.Where(goal =>
+                    goal.Status ==
+                        FinancialGoalStatus.Completed ||
+                    goal.StartingAmount
+                    + (
+                        goal.Contributions
+                            .Sum(contribution =>
+                                (decimal?)contribution.Amount)
+                        ?? 0m
+                    )
+                    >= goal.TargetAmount);
+            }
+            else
+            {
+                goals = goals.Where(goal =>
+                    goal.Status !=
+                        FinancialGoalStatus.Completed &&
+                    goal.StartingAmount
+                    + (
+                        goal.Contributions
+                            .Sum(contribution =>
+                                (decimal?)contribution.Amount)
+                        ?? 0m
+                    )
+                    < goal.TargetAmount);
+            }
+        }
+
+        if (query.IsOverdue.HasValue)
+        {
+            var today = DateTime.UtcNow.Date;
+
+            if (query.IsOverdue.Value)
+            {
+                goals = goals.Where(goal =>
+                    goal.TargetDate.HasValue &&
+                    goal.TargetDate.Value < today &&
+                    goal.Status !=
+                        FinancialGoalStatus.Completed &&
+                    goal.StartingAmount
+                    + (
+                        goal.Contributions
+                            .Sum(contribution =>
+                                (decimal?)contribution.Amount)
+                        ?? 0m
+                    )
+                    < goal.TargetAmount);
+            }
+            else
+            {
+                goals = goals.Where(goal =>
+                    !goal.TargetDate.HasValue ||
+                    goal.TargetDate.Value >= today ||
+                    goal.Status ==
+                        FinancialGoalStatus.Completed ||
+                    goal.StartingAmount
+                    + (
+                        goal.Contributions
+                            .Sum(contribution =>
+                                (decimal?)contribution.Amount)
+                        ?? 0m
+                    )
+                    >= goal.TargetAmount);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            var search = query.Search.Trim();
+
+            goals = goals.Where(goal =>
+                goal.Name.Contains(search) ||
+                goal.Notes.Contains(search) ||
+                (goal.Account != null &&
+                 goal.Account.Name.Contains(search)));
+        }
+
+        goals = ApplySorting(
+            goals,
+            query.SortBy,
+            query.SortDirection);
+
+        var totalRecords =
+            await goals.CountAsync();
+
+        var totalPages =
+            totalRecords == 0
+                ? 0
+                : (int)Math.Ceiling(
+                    totalRecords /
+                    (double)query.PageSize);
+
+        var items =
+            await goals
+                .Skip(
+                    (query.Page - 1) *
+                    query.PageSize)
+                .Take(query.PageSize)
+                .ToListAsync();
+
+        return new PagedResult<FinancialGoal>
+        {
+            Page = query.Page,
+            PageSize = query.PageSize,
+            TotalRecords = totalRecords,
+            TotalPages = totalPages,
+            Items = items
+        };
+    }
+    private static IQueryable<FinancialGoal> ApplySorting(
+    IQueryable<FinancialGoal> query,
+    string? sortBy,
+    string? sortDirection)
+    {
+        var descending =
+            string.Equals(
+                sortDirection,
+                "desc",
+                StringComparison.OrdinalIgnoreCase);
+
+        return sortBy?.Trim().ToLowerInvariant() switch
+        {
+            "targetamount" => descending
+                ? query
+                    .OrderByDescending(goal =>
+                        goal.TargetAmount)
+                    .ThenByDescending(goal =>
+                        goal.Id)
+                : query
+                    .OrderBy(goal =>
+                        goal.TargetAmount)
+                    .ThenBy(goal =>
+                        goal.Id),
+
+            "savedamount" => descending
+                ? query
+                    .OrderByDescending(goal =>
+                        goal.StartingAmount
+                        + (
+                            goal.Contributions
+                                .Sum(contribution =>
+                                    (decimal?)contribution.Amount)
+                            ?? 0m
+                        ))
+                    .ThenByDescending(goal =>
+                        goal.Id)
+                : query
+                    .OrderBy(goal =>
+                        goal.StartingAmount
+                        + (
+                            goal.Contributions
+                                .Sum(contribution =>
+                                    (decimal?)contribution.Amount)
+                            ?? 0m
+                        ))
+                    .ThenBy(goal =>
+                        goal.Id),
+
+            "percentage" => descending
+                ? query
+                    .OrderByDescending(goal =>
+                        goal.TargetAmount <= 0
+                            ? 0m
+                            : (
+                                goal.StartingAmount
+                                + (
+                                    goal.Contributions
+                                        .Sum(contribution =>
+                                            (decimal?)contribution.Amount)
+                                    ?? 0m
+                                )
+                            ) / goal.TargetAmount)
+                    .ThenByDescending(goal =>
+                        goal.Id)
+                : query
+                    .OrderBy(goal =>
+                        goal.TargetAmount <= 0
+                            ? 0m
+                            : (
+                                goal.StartingAmount
+                                + (
+                                    goal.Contributions
+                                        .Sum(contribution =>
+                                            (decimal?)contribution.Amount)
+                                    ?? 0m
+                                )
+                            ) / goal.TargetAmount)
+                    .ThenBy(goal =>
+                        goal.Id),
+
+            "targetdate" or "date" => descending
+                ? query
+                    .OrderByDescending(goal =>
+                        goal.TargetDate)
+                    .ThenByDescending(goal =>
+                        goal.Id)
+                : query
+                    .OrderBy(goal =>
+                        goal.TargetDate)
+                    .ThenBy(goal =>
+                        goal.Id),
+
+            "status" => descending
+                ? query
+                    .OrderByDescending(goal =>
+                        goal.Status)
+                    .ThenByDescending(goal =>
+                        goal.Id)
+                : query
+                    .OrderBy(goal =>
+                        goal.Status)
+                    .ThenBy(goal =>
+                        goal.Id),
+
+            _ => descending
+                ? query
+                    .OrderByDescending(goal =>
+                        goal.Name)
+                    .ThenByDescending(goal =>
+                        goal.Id)
+                : query
+                    .OrderBy(goal =>
+                        goal.Name)
+                    .ThenBy(goal =>
+                        goal.Id)
+        };
     }
 }

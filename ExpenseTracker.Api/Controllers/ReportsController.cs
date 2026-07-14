@@ -1,4 +1,5 @@
-﻿using ExpenseTracker.Application.Interfaces;
+﻿using ExpenseTracker.Application.DTOs.Reports;
+using ExpenseTracker.Application.Interfaces;
 using ExpenseTracker.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -78,5 +79,16 @@ public class ReportsController : ControllerBase
     {
         var statistics =await _reportService.GetStatisticsAsync(year);
         return Ok(statistics);
+    }
+    [HttpGet("largest-transactions/paged")]
+    public async Task<IActionResult>
+    GetLargestTransactionsPaged(
+        [FromQuery] LargestTransactionQueryDto query)
+    {
+        var result =
+            await _reportService
+                .GetLargestTransactionsPagedAsync(query);
+
+        return Ok(result);
     }
 }

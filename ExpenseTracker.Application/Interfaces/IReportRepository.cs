@@ -1,4 +1,5 @@
-﻿using ExpenseTracker.Application.DTOs.Reports;
+﻿using ExpenseTracker.Application.Common;
+using ExpenseTracker.Application.DTOs.Reports;
 using ExpenseTracker.Domain.Enums;
 
 namespace ExpenseTracker.Application.Interfaces;
@@ -14,4 +15,7 @@ public interface IReportRepository
     Task<IEnumerable<LargestTransactionDto>>GetLargestTransactionsAsync(string userId,int limit,TransactionType? type);
     Task<IEnumerable<CategoryComparisonDto>>GetCategoryComparisonAsync(string userId, int year);
     Task<FinancialStatisticsDto> GetStatisticsAsync(string userId,int year);
+    Task<PagedResult<LargestTransactionDto>> GetLargestTransactionsPagedAsync(string userId,LargestTransactionQueryDto query);
+
+
 }

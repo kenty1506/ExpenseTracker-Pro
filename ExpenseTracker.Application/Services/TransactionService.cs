@@ -1,6 +1,7 @@
 ﻿using ExpenseTracker.Application.DTOs.Transactions;
 using ExpenseTracker.Application.Interfaces;
 using ExpenseTracker.Domain.Entities;
+using ExpenseTracker.Application.Common;
 
 namespace ExpenseTracker.Application.Services;
 
@@ -195,6 +196,26 @@ public class TransactionService : ITransactionService
             Amount = transaction.Amount,
             Notes = transaction.Notes,
             Date = transaction.Date
+        };
+    }
+    public async Task<PagedResult<TransactionDto>> GetPagedAsync(
+    TransactionQueryDto query)
+    {
+        var result =
+            await _transactionRepository.GetPagedAsync(
+                _currentUserService.UserId,
+                query);
+
+        return new PagedResult<TransactionDto>
+        {
+            Page = result.Page,
+            PageSize = result.PageSize,
+            TotalRecords = result.TotalRecords,
+            TotalPages = result.TotalPages,
+
+            Items = result.Items
+                .Select(MapToDto)
+                .ToList()
         };
     }
 }

@@ -1,4 +1,6 @@
-﻿using ExpenseTracker.Application.DTOs.Accounts;
+﻿using ExpenseTracker.Application.Common;
+using ExpenseTracker.Application.DTOs.Accounts;
+
 
 namespace ExpenseTracker.Application.Interfaces;
 
@@ -15,4 +17,5 @@ public interface IAccountService
     Task<bool> DeleteAsync(int id);
 
     Task<AccountSummaryDto> GetSummaryAsync();
+    Task<PagedResult<AccountDto>> GetPagedAsync(AccountQueryDto query);
 }

@@ -1,4 +1,5 @@
-﻿using ExpenseTracker.Application.DTOs.Accounts;
+﻿using ExpenseTracker.Application.Common;
+using ExpenseTracker.Application.DTOs.Accounts;
 using ExpenseTracker.Application.Interfaces;
 using ExpenseTracker.Domain.Entities;
 using ExpenseTracker.Domain.Enums;
@@ -312,6 +313,25 @@ public class AccountService : IAccountService
             IsActive = account.IsActive,
             TransactionCount = account.Transactions.Count,
             RecentTransfers = recentTransfers
+        };
+    }
+    public async Task<PagedResult<AccountDto>> GetPagedAsync(
+    AccountQueryDto query)
+    {
+        var result =
+            await _accountRepository.GetPagedAsync(
+                _currentUserService.UserId,
+                query);
+
+        return new PagedResult<AccountDto>
+        {
+            Page = result.Page,
+            PageSize = result.PageSize,
+            TotalRecords = result.TotalRecords,
+            TotalPages = result.TotalPages,
+            Items = result.Items
+                .Select(MapToDto)
+                .ToList()
         };
     }
 }

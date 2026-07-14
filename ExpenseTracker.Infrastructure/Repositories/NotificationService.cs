@@ -1,4 +1,5 @@
-﻿using ExpenseTracker.Application.DTOs.Notifications;
+﻿using ExpenseTracker.Application.Common;
+using ExpenseTracker.Application.DTOs.Notifications;
 using ExpenseTracker.Application.Interfaces;
 using ExpenseTracker.Domain.Entities;
 using ExpenseTracker.Domain.Enums;
@@ -218,6 +219,24 @@ public class NotificationService : INotificationService
                 notification.ReferenceId,
             ActionUrl =
                 notification.ActionUrl
+        };
+    }
+    public async Task<PagedResult<NotificationDto>> GetPagedAsync(NotificationQueryDto query)
+    {
+        var result =
+            await _notificationRepository.GetPagedAsync(
+                _currentUserService.UserId,
+                query);
+
+        return new PagedResult<NotificationDto>
+        {
+            Page = result.Page,
+            PageSize = result.PageSize,
+            TotalRecords = result.TotalRecords,
+            TotalPages = result.TotalPages,
+            Items = result.Items
+                .Select(MapToDto)
+                .ToList()
         };
     }
 }

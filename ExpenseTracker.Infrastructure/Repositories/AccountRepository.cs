@@ -1,7 +1,11 @@
-﻿using ExpenseTracker.Application.Interfaces;
+﻿using ExpenseTracker.Application.Common;
+using ExpenseTracker.Application.DTOs.Accounts;
+using ExpenseTracker.Application.Interfaces;
 using ExpenseTracker.Domain.Entities;
+using ExpenseTracker.Domain.Enums;
 using ExpenseTracker.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+
 
 namespace ExpenseTracker.Infrastructure.Repositories;
 
@@ -113,5 +117,267 @@ public class AccountRepository : IAccountRepository
             .AnyAsync(transaction =>
                 transaction.UserId == userId &&
                 transaction.AccountId == id);
+    }
+
+    public async Task<PagedResult<Account>> GetPagedAsync(
+    string userId,
+    AccountQueryDto query)
+    {
+        var accounts = _context.Accounts
+            .AsNoTracking()
+            .Where(account =>
+                account.UserId == userId)
+            .Include(account =>
+                account.Transactions)
+            .Include(account =>
+                account.IncomingTransfers)
+            .Include(account =>
+                account.OutgoingTransfers)
+            .AsQueryable();
+
+        if (query.Type.HasValue)
+        {
+            accounts = accounts.Where(account =>
+                account.Type == query.Type.Value);
+        }
+
+        if (query.IsActive.HasValue)
+        {
+            accounts = accounts.Where(account =>
+                account.IsActive == query.IsActive.Value);
+        }
+
+        if (query.IncludeInNetWorth.HasValue)
+        {
+            accounts = accounts.Where(account =>
+                account.IncludeInNetWorth ==
+                query.IncludeInNetWorth.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Currency))
+        {
+            var currency =
+                query.Currency.Trim().ToUpper();
+
+            accounts = accounts.Where(account =>
+                account.Currency == currency);
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            var search = query.Search.Trim();
+
+            accounts = accounts.Where(account =>
+                account.Name.Contains(search) ||
+                account.Currency.Contains(search));
+        }
+
+        if (query.MinBalance.HasValue)
+        {
+            var minimumBalance = query.MinBalance.Value;
+
+            accounts = accounts.Where(account =>
+                account.OpeningBalance
+                + (
+                    account.Transactions
+                        .Where(transaction =>
+                            transaction.Type ==
+                            TransactionType.Income)
+                        .Sum(transaction =>
+                            (decimal?)transaction.Amount)
+                    ?? 0m
+                )
+                - (
+                    account.Transactions
+                        .Where(transaction =>
+                            transaction.Type ==
+                            TransactionType.Expense)
+                        .Sum(transaction =>
+                            (decimal?)transaction.Amount)
+                    ?? 0m
+                )
+                + (
+                    account.IncomingTransfers
+                        .Sum(transfer =>
+                            (decimal?)transfer.Amount)
+                    ?? 0m
+                )
+                - (
+                    account.OutgoingTransfers
+                        .Sum(transfer =>
+                            (decimal?)transfer.Amount)
+                    ?? 0m
+                )
+                >= minimumBalance);
+        }
+
+        if (query.MaxBalance.HasValue)
+        {
+            var maximumBalance = query.MaxBalance.Value;
+
+            accounts = accounts.Where(account =>
+                account.OpeningBalance
+                + (
+                    account.Transactions
+                        .Where(transaction =>
+                            transaction.Type ==
+                            TransactionType.Income)
+                        .Sum(transaction =>
+                            (decimal?)transaction.Amount)
+                    ?? 0m
+                )
+                - (
+                    account.Transactions
+                        .Where(transaction =>
+                            transaction.Type ==
+                            TransactionType.Expense)
+                        .Sum(transaction =>
+                            (decimal?)transaction.Amount)
+                    ?? 0m
+                )
+                + (
+                    account.IncomingTransfers
+                        .Sum(transfer =>
+                            (decimal?)transfer.Amount)
+                    ?? 0m
+                )
+                - (
+                    account.OutgoingTransfers
+                        .Sum(transfer =>
+                            (decimal?)transfer.Amount)
+                    ?? 0m
+                )
+                <= maximumBalance);
+        }
+
+        accounts = ApplySorting(
+            accounts,
+            query.SortBy,
+            query.SortDirection);
+
+        var totalRecords =
+            await accounts.CountAsync();
+
+        var totalPages =
+            totalRecords == 0
+                ? 0
+                : (int)Math.Ceiling(
+                    totalRecords /
+                    (double)query.PageSize);
+
+        var items =
+            await accounts
+                .Skip(
+                    (query.Page - 1) *
+                    query.PageSize)
+                .Take(query.PageSize)
+                .ToListAsync();
+
+        return new PagedResult<Account>
+        {
+            Page = query.Page,
+            PageSize = query.PageSize,
+            TotalRecords = totalRecords,
+            TotalPages = totalPages,
+            Items = items
+        };
+    }
+    private static IQueryable<Account> ApplySorting(
+    IQueryable<Account> query,
+    string? sortBy,
+    string? sortDirection)
+    {
+        var descending =
+            string.Equals(
+                sortDirection,
+                "desc",
+                StringComparison.OrdinalIgnoreCase);
+
+        return sortBy?.Trim().ToLowerInvariant() switch
+        {
+            "type" => descending
+                ? query
+                    .OrderByDescending(account =>
+                        account.Type)
+                    .ThenByDescending(account =>
+                        account.Id)
+                : query
+                    .OrderBy(account =>
+                        account.Type)
+                    .ThenBy(account =>
+                        account.Id),
+
+            "openingbalance" => descending
+                ? query
+                    .OrderByDescending(account =>
+                        account.OpeningBalance)
+                    .ThenByDescending(account =>
+                        account.Id)
+                : query
+                    .OrderBy(account =>
+                        account.OpeningBalance)
+                    .ThenBy(account =>
+                        account.Id),
+
+            "balance" => descending
+                ? query
+                    .OrderByDescending(account =>
+                        account.OpeningBalance
+                        + account.Transactions
+                            .Where(transaction =>
+                                transaction.Type ==
+                                TransactionType.Income)
+                            .Sum(transaction =>
+                                (decimal?)transaction.Amount) ?? 0
+                        - account.Transactions
+                            .Where(transaction =>
+                                transaction.Type ==
+                                TransactionType.Expense)
+                            .Sum(transaction =>
+                                (decimal?)transaction.Amount) ?? 0
+                        + account.IncomingTransfers
+                            .Sum(transfer =>
+                                (decimal?)transfer.Amount) ?? 0
+                        - account.OutgoingTransfers
+                            .Sum(transfer =>
+                                (decimal?)transfer.Amount) ?? 0)
+                    .ThenByDescending(account =>
+                        account.Id)
+                : query
+                    .OrderBy(account =>
+                        account.OpeningBalance
+                        + account.Transactions
+                            .Where(transaction =>
+                                transaction.Type ==
+                                TransactionType.Income)
+                            .Sum(transaction =>
+                                (decimal?)transaction.Amount) ?? 0
+                        - account.Transactions
+                            .Where(transaction =>
+                                transaction.Type ==
+                                TransactionType.Expense)
+                            .Sum(transaction =>
+                                (decimal?)transaction.Amount) ?? 0
+                        + account.IncomingTransfers
+                            .Sum(transfer =>
+                                (decimal?)transfer.Amount) ?? 0
+                        - account.OutgoingTransfers
+                            .Sum(transfer =>
+                                (decimal?)transfer.Amount) ?? 0)
+                    .ThenBy(account =>
+                        account.Id),
+
+            _ => descending
+                ? query
+                    .OrderByDescending(account =>
+                        account.Name)
+                    .ThenByDescending(account =>
+                        account.Id)
+                : query
+                    .OrderBy(account =>
+                        account.Name)
+                    .ThenBy(account =>
+                        account.Id)
+        };
     }
 }

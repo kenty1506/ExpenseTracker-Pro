@@ -3,6 +3,7 @@ using ExpenseTracker.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
+
 namespace ExpenseTracker.Api.Controllers;
 
 [Authorize]
@@ -78,5 +79,15 @@ public class TransfersController : ControllerBase
             return NotFound();
 
         return NoContent();
+    }
+
+    [HttpGet("paged")]
+    public async Task<IActionResult> GetPaged(
+    [FromQuery] TransferQueryDto query)
+    {
+        var result =
+            await _transferService.GetPagedAsync(query);
+
+        return Ok(result);
     }
 }

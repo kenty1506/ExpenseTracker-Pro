@@ -115,4 +115,14 @@ public class FinancialGoalsController : ControllerBase
 
         return Ok(summary);
     }
+
+    [HttpGet("paged")]
+    public async Task<IActionResult> GetPaged(
+    [FromQuery] FinancialGoalQueryDto query)
+    {
+        var result =
+            await _financialGoalService.GetPagedAsync(query);
+
+        return Ok(result);
+    }
 }

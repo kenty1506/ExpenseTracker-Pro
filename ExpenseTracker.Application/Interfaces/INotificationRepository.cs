@@ -1,4 +1,6 @@
 ﻿using ExpenseTracker.Domain.Entities;
+using ExpenseTracker.Application.Common;
+using ExpenseTracker.Application.DTOs.Notifications;
 
 namespace ExpenseTracker.Application.Interfaces;
 
@@ -19,4 +21,5 @@ public interface INotificationRepository
     Task<bool> DeleteAsync(int id,string userId);
 
     Task<int> DeleteReadAsync(string userId);
+    Task<PagedResult<Notification>> GetPagedAsync(string userId, NotificationQueryDto query);
 }

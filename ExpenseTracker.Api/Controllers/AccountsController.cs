@@ -88,4 +88,14 @@ public class AccountsController : ControllerBase
 
         return Ok(summary);
     }
+
+    [HttpGet("paged")]
+    public async Task<IActionResult> GetPaged(
+    [FromQuery] AccountQueryDto query)
+    {
+        var result =
+            await _accountService.GetPagedAsync(query);
+
+        return Ok(result);
+    }
 }

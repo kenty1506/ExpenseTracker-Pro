@@ -1,4 +1,6 @@
 ﻿using ExpenseTracker.Domain.Entities;
+using ExpenseTracker.Application.Common;
+using ExpenseTracker.Application.DTOs.FinancialGoals;
 
 namespace ExpenseTracker.Application.Interfaces;
 
@@ -32,4 +34,8 @@ public interface IFinancialGoalRepository
         int contributionId,
         int financialGoalId,
         string userId);
+
+    Task<PagedResult<FinancialGoal>> GetPagedAsync(
+    string userId,
+    FinancialGoalQueryDto query);
 }

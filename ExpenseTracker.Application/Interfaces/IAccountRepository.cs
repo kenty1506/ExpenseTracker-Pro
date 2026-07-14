@@ -1,4 +1,6 @@
 ﻿using ExpenseTracker.Domain.Entities;
+using ExpenseTracker.Application.Common;
+using ExpenseTracker.Application.DTOs.Accounts;
 
 namespace ExpenseTracker.Application.Interfaces;
 
@@ -17,4 +19,6 @@ public interface IAccountRepository
     Task<bool> DeleteAsync(int id,string userId);
 
     Task<bool> HasTransactionsAsync(int id,string userId);
+    Task<PagedResult<Account>> GetPagedAsync(string userId,AccountQueryDto query);
+
 }

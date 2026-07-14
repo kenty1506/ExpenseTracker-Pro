@@ -66,4 +66,14 @@ public class TransactionsController : ControllerBase
 
         return Ok(transaction);
     }
+
+    [HttpGet("paged")]
+    public async Task<IActionResult> GetPaged(
+    [FromQuery] TransactionQueryDto query)
+    {
+        var result =
+            await _transactionService.GetPagedAsync(query);
+
+        return Ok(result);
+    }
 }

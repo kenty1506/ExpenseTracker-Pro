@@ -1,4 +1,5 @@
-﻿using ExpenseTracker.Application.DTOs.Reports;
+﻿using ExpenseTracker.Application.Common;
+using ExpenseTracker.Application.DTOs.Reports;
 using ExpenseTracker.Application.Interfaces;
 using ExpenseTracker.Domain.Enums;
 
@@ -117,5 +118,53 @@ public class ReportService : IReportService
             throw new ArgumentException("Please provide a valid report year.");
         }
         return await _reportRepository.GetStatisticsAsync(_currentUserService.UserId,year);
+    }
+
+    public async Task<PagedResult<LargestTransactionDto>>
+    GetLargestTransactionsPagedAsync(
+        LargestTransactionQueryDto query)
+    {
+        if (query.Type.HasValue &&
+            !Enum.IsDefined(query.Type.Value))
+        {
+            throw new ArgumentException(
+                "The transaction type must be 1 for Income or 2 for Expense.");
+        }
+
+        if (query.MinAmount.HasValue &&
+            query.MinAmount.Value < 0)
+        {
+            throw new ArgumentException(
+                "Minimum amount cannot be negative.");
+        }
+
+        if (query.MaxAmount.HasValue &&
+            query.MaxAmount.Value < 0)
+        {
+            throw new ArgumentException(
+                "Maximum amount cannot be negative.");
+        }
+
+        if (query.MinAmount.HasValue &&
+            query.MaxAmount.HasValue &&
+            query.MinAmount.Value > query.MaxAmount.Value)
+        {
+            throw new ArgumentException(
+                "Minimum amount cannot be greater than maximum amount.");
+        }
+
+        if (query.FromDate.HasValue &&
+            query.ToDate.HasValue &&
+            query.FromDate.Value.Date >
+            query.ToDate.Value.Date)
+        {
+            throw new ArgumentException(
+                "From date cannot be later than to date.");
+        }
+
+        return await _reportRepository
+            .GetLargestTransactionsPagedAsync(
+                _currentUserService.UserId,
+                query);
     }
 }

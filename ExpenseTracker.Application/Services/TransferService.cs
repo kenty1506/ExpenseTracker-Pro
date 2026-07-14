@@ -2,6 +2,7 @@
 using ExpenseTracker.Application.Interfaces;
 using ExpenseTracker.Domain.Entities;
 using ExpenseTracker.Domain.Enums;
+using ExpenseTracker.Application.Common;
 
 namespace ExpenseTracker.Application.Services;
 
@@ -291,6 +292,25 @@ public class TransferService : ITransferService
                 transfer.TransferDate,
             Notes =
                 transfer.Notes
+        };
+    }
+    public async Task<PagedResult<TransferDto>> GetPagedAsync(
+    TransferQueryDto query)
+    {
+        var result =
+            await _transferRepository.GetPagedAsync(
+                _currentUserService.UserId,
+                query);
+
+        return new PagedResult<TransferDto>
+        {
+            Page = result.Page,
+            PageSize = result.PageSize,
+            TotalRecords = result.TotalRecords,
+            TotalPages = result.TotalPages,
+            Items = result.Items
+                .Select(MapToDto)
+                .ToList()
         };
     }
 }

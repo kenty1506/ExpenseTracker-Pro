@@ -1,4 +1,5 @@
-﻿using ExpenseTracker.Application.DTOs.FinancialGoals;
+﻿using ExpenseTracker.Application.Common;
+using ExpenseTracker.Application.DTOs.FinancialGoals;
 using ExpenseTracker.Application.Interfaces;
 using ExpenseTracker.Domain.Entities;
 using ExpenseTracker.Domain.Enums;
@@ -446,6 +447,25 @@ public class FinancialGoalService : IFinancialGoalService
 
             OverallPercentageCompleted =
                 overallPercentageCompleted
+        };
+    }
+    public async Task<PagedResult<FinancialGoalDto>> GetPagedAsync(
+    FinancialGoalQueryDto query)
+    {
+        var result =
+            await _financialGoalRepository.GetPagedAsync(
+                _currentUserService.UserId,
+                query);
+
+        return new PagedResult<FinancialGoalDto>
+        {
+            Page = result.Page,
+            PageSize = result.PageSize,
+            TotalRecords = result.TotalRecords,
+            TotalPages = result.TotalPages,
+            Items = result.Items
+                .Select(MapToDto)
+                .ToList()
         };
     }
 }
