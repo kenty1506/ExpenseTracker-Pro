@@ -10,39 +10,119 @@ using ExpenseTracker.Api.Services;
 using ExpenseTracker.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using ExpenseTracker.Api.BackgroundServices;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using System.Text.Json;
+using Asp.Versioning;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Register application services
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services
+    .AddApiVersioning(options =>
+    {
+        options.DefaultApiVersion =
+            new ApiVersion(1, 0);
+
+        options.AssumeDefaultVersionWhenUnspecified =
+            true;
+
+        options.ReportApiVersions =
+            true;
+
+        options.ApiVersionReader =
+            new UrlSegmentApiVersionReader();
+    })
+    .AddMvc()
+    .AddApiExplorer(options =>
+    {
+        options.GroupNameFormat = "'v'VVV";
+
+        options.SubstituteApiVersionInUrl =
+            true;
+    });
 
 builder.Services.AddSwaggerGen(options =>
 {
-    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-    {
-        Name = "Authorization",
-        Type = SecuritySchemeType.Http,
-        Scheme = "bearer",
-        BearerFormat = "JWT",
-        In = ParameterLocation.Header,
-        Description = "Enter your JWT token."
-    });
-
-    options.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
+    options.SwaggerDoc(
+        "v1",
+        new OpenApiInfo
         {
-            new OpenApiSecurityScheme
+            Version = "v1",
+            Title = "ExpenseTracker Pro API",
+            Description =
+                "REST API for personal finance management, including " +
+                "accounts, transactions, transfers, budgets, recurring " +
+                "transactions, financial goals, reports, notifications, " +
+                "and dashboard analytics.",
+
+            Contact = new OpenApiContact
             {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
+                Name = "ExpenseTracker Pro Development Team"
             },
-            Array.Empty<string>()
-        }
-    });
+
+            License = new OpenApiLicense
+            {
+                Name = "Private Development Project"
+            }
+        });
+
+    options.AddSecurityDefinition(
+        "Bearer",
+        new OpenApiSecurityScheme
+        {
+            Name = "Authorization",
+            Type = SecuritySchemeType.Http,
+            Scheme = "bearer",
+            BearerFormat = "JWT",
+            In = ParameterLocation.Header,
+            Description =
+                "Enter the JWT access token returned by the login endpoint. " +
+                "Do not include the word 'Bearer'; Swagger adds it automatically."
+        });
+
+    options.AddSecurityRequirement(
+        new OpenApiSecurityRequirement
+        {
+            {
+                new OpenApiSecurityScheme
+                {
+                    Reference = new OpenApiReference
+                    {
+                        Type =
+                            ReferenceType.SecurityScheme,
+
+                        Id = "Bearer"
+                    }
+                },
+                Array.Empty<string>()
+            }
+        });
+
+    var xmlFile =
+        $"{typeof(Program).Assembly.GetName().Name}.xml";
+
+    var xmlPath =
+        Path.Combine(
+            AppContext.BaseDirectory,
+            xmlFile);
+
+    if (File.Exists(xmlPath))
+    {
+        options.IncludeXmlComments(xmlPath);
+    }
+
+    options.CustomSchemaIds(type =>
+        type.FullName?.Replace("+", ".")
+        ?? type.Name);
+
+    options.OrderActionsBy(apiDescription =>
+        $"{apiDescription.ActionDescriptor.RouteValues["controller"]}_" +
+        $"{apiDescription.HttpMethod}_" +
+        $"{apiDescription.RelativePath}");
 });
 
 builder.Services.AddScoped<ITransactionService, TransactionService>();
@@ -95,7 +175,16 @@ builder.Services.AddScoped<INotificationService,NotificationService>();
 builder.Services.AddScoped<INotificationEngineService, NotificationEngineService>();
 builder.Services.AddHostedService<ExpenseTrackerBackgroundService>();
 builder.Services.AddScoped<ISystemBackgroundProcessor, SystemBackgroundProcessor>();
+builder.Services.AddEndpointsApiExplorer();
 
+builder.Services
+    .AddHealthChecks()
+    .AddDbContextCheck<ExpenseTrackerDbContext>(
+        name: "sql-server",
+        failureStatus:
+            Microsoft.Extensions.Diagnostics.HealthChecks
+                .HealthStatus.Unhealthy,
+        tags: ["database", "ready"]);
 
 var app = builder.Build();
 app.UseExceptionHandler();
@@ -120,7 +209,24 @@ if (app.Environment.IsDevelopment())
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint(
+            "/swagger/v1/swagger.json",
+            "ExpenseTracker Pro API v1");
+
+        options.DocumentTitle =
+            "ExpenseTracker Pro API Documentation";
+
+        options.DisplayRequestDuration();
+
+        options.EnableDeepLinking();
+
+        options.EnableFilter();
+
+        options.ShowExtensions();
+    });
 }
 
 
@@ -129,6 +235,81 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapHealthChecks(
+        "/health/live",
+        new HealthCheckOptions
+        {
+            Predicate = _ => false
+        })
+    .WithTags("Health Checks")
+    .WithOpenApi(operation =>
+    {
+        operation.Summary = "Check API liveness";
+        operation.Description =
+            "Confirms that the ExpenseTracker API process is running.";
+
+        return operation;
+    });
+
+app.MapHealthChecks(
+        "/health/ready",
+        new HealthCheckOptions
+        {
+            Predicate = check =>
+                check.Tags.Contains("ready"),
+
+            ResponseWriter = WriteHealthResponse
+        })
+    .WithTags("Health Checks")
+    .WithOpenApi(operation =>
+    {
+        operation.Summary = "Check API readiness";
+        operation.Description =
+            "Confirms that the API and SQL Server database are available.";
+
+        return operation;
+    });
+
 app.MapControllers();
 
 app.Run();
+
+static async Task WriteHealthResponse(
+    HttpContext context,
+    HealthReport report)
+{
+    context.Response.ContentType =
+        "application/json";
+
+    var response = new
+    {
+        status = report.Status.ToString(),
+
+        totalDuration =
+            report.TotalDuration.TotalMilliseconds,
+
+        checks = report.Entries.Select(entry =>
+            new
+            {
+                name = entry.Key,
+                status =
+                    entry.Value.Status.ToString(),
+                description =
+                    entry.Value.Description,
+                duration =
+                    entry.Value.Duration.TotalMilliseconds,
+                error =
+                    entry.Value.Exception?.Message
+            }),
+
+        timestamp = DateTime.UtcNow
+    };
+
+    await context.Response.WriteAsync(
+        JsonSerializer.Serialize(
+            response,
+            new JsonSerializerOptions
+            {
+                WriteIndented = true
+            }));
+}
