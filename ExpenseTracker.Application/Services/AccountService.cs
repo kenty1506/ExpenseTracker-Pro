@@ -125,6 +125,7 @@ public class AccountService : IAccountService
 
         account.Name = name;
         account.Type = dto.Type;
+        account.OpeningBalance = dto.OpeningBalance;
         account.Currency = dto.Currency
             .Trim()
             .ToUpperInvariant();

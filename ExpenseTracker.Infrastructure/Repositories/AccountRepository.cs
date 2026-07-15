@@ -75,6 +75,7 @@ public class AccountRepository : IAccountRepository
         existing.Name = account.Name;
         existing.Type = account.Type;
         existing.Currency = account.Currency;
+        existing.OpeningBalance = account.OpeningBalance;
         existing.Color = account.Color;
         existing.Icon = account.Icon;
         existing.IncludeInNetWorth =account.IncludeInNetWorth;
