@@ -19,6 +19,8 @@ public class UpdateAccountDto
     [MaxLength(20)]
     public string Color { get; set; } = "#6366F1";
 
+    public decimal OpeningBalance { get; set; } = 0;
+
     [Required]
     [MaxLength(100)]
     public string Icon { get; set; } = "account_balance_wallet";
