@@ -299,4 +299,85 @@ public class FinancialGoalsController : ControllerBase
         var result = await _financialGoalService.GetPagedAsync(query);
         return Ok(result);
     }
+
+    /// <summary>
+    /// Adds a positive or negative adjustment to a financial goal.
+    /// </summary>
+    /// <remarks>
+    /// Adjustments are used to reconcile or correct the saved amount
+    /// without creating a bank transfer.
+    /// </remarks>
+    /// <param name="id">Financial goal identifier.</param>
+    /// <param name="dto">Adjustment amount, date, and explanation.</param>
+    /// <response code="200">
+    /// The adjustment was added successfully.
+    /// </response>
+    /// <response code="400">
+    /// The adjustment is invalid or the goal cannot receive adjustments.
+    /// </response>
+    /// <response code="401">
+    /// Authentication is required.
+    /// </response>
+    /// <response code="404">
+    /// The financial goal was not found.
+    /// </response>
+    [HttpPost("{id:int}/adjustments")]
+    [ProducesResponseType(typeof(GoalContributionDto),StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails),StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails),StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails),StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AddAdjustment(int id,AddGoalAdjustmentDto dto)
+    {
+        var adjustment =
+            await _financialGoalService
+                .AddAdjustmentAsync(
+                    id,
+                    dto);
+
+        if (adjustment == null)
+            return NotFound();
+
+        return Ok(adjustment);
+    }
+
+    /// <summary>
+    /// Records interest earned toward a financial goal.
+    /// </summary>
+    /// <remarks>
+    /// Interest increases the goal's saved amount but is not linked
+    /// to a transfer.
+    /// </remarks>
+    /// <param name="id">Financial goal identifier.</param>
+    /// <param name="dto">Interest amount, date, and notes.</param>
+    /// <response code="200">
+    /// Interest was recorded successfully.
+    /// </response>
+    /// <response code="400">
+    /// The interest request is invalid.
+    /// </response>
+    /// <response code="401">
+    /// Authentication is required.
+    /// </response>
+    /// <response code="404">
+    /// The financial goal was not found.
+    /// </response>
+    [HttpPost("{id:int}/interest")]
+    [ProducesResponseType(typeof(GoalContributionDto),StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails),StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails),StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails),StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AddInterest(int id,
+        AddGoalInterestDto dto)
+    {
+        var interest =
+            await _financialGoalService
+                .AddInterestAsync(
+                    id,
+                    dto);
+
+        if (interest == null)
+            return NotFound();
+
+        return Ok(interest);
+    }
 }

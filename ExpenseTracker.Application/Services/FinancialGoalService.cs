@@ -162,6 +162,7 @@ public class FinancialGoalService : IFinancialGoalService
         var userId = _currentUserService.UserId;
         var goal = await _financialGoalRepository.GetByIdAsync(financialGoalId,userId);
 
+
         if (goal == null)
             return null;
 
@@ -185,7 +186,9 @@ public class FinancialGoalService : IFinancialGoalService
             Amount = dto.Amount,
             ContributionDate = dto.ContributionDate,
             Notes = dto.Notes.Trim(),
-            IsActive = true
+            ContributionType =GoalContributionType.Manual,
+            TransferId = null,
+            IsActive = true,
         };
 
         var created =await _financialGoalRepository.AddContributionAsync(contribution);
@@ -213,6 +216,224 @@ public class FinancialGoalService : IFinancialGoalService
         return savedContribution == null ? null: MapContributionToDto(savedContribution);
     }
 
+    public async Task<GoalContributionDto?> AddAdjustmentAsync(
+    int financialGoalId,
+    AddGoalAdjustmentDto dto)
+    {
+        var userId =
+            _currentUserService.UserId;
+
+        var goal =
+            await _financialGoalRepository.GetByIdAsync(
+                financialGoalId,
+                userId);
+
+        if (goal == null)
+            return null;
+
+        if (goal.Status ==
+                FinancialGoalStatus.Cancelled ||
+            goal.Status ==
+                FinancialGoalStatus.Paused)
+        {
+            throw new ArgumentException(
+                "Adjustments cannot be added to a paused or cancelled goal.");
+        }
+
+        if (dto.Amount == 0)
+        {
+            throw new ArgumentException(
+                "The adjustment amount cannot be zero.");
+        }
+
+        if (dto.AdjustmentDate.Date <
+            goal.StartDate.Date)
+        {
+            throw new ArgumentException(
+                "The adjustment date cannot be earlier than the goal start date.");
+        }
+
+        if (string.IsNullOrWhiteSpace(dto.Notes))
+        {
+            throw new ArgumentException(
+                "Adjustment notes are required.");
+        }
+
+        var contribution =
+            new GoalContribution
+            {
+                UserId =
+                    userId,
+
+                FinancialGoalId =
+                    financialGoalId,
+
+                AccountId =
+                    goal.AccountId,
+
+                Amount =
+                    dto.Amount,
+
+                ContributionDate =
+                    dto.AdjustmentDate,
+
+                Notes =
+                    dto.Notes.Trim(),
+
+                ContributionType =
+                    GoalContributionType.Adjustment,
+
+                TransferId =
+                    null,
+
+                IsActive =
+                    true
+            };
+
+        var created =
+            await _financialGoalRepository
+                .AddContributionAsync(contribution);
+
+        await RecalculateGoalStatusAsync(
+            financialGoalId,
+            userId);
+
+        var updatedGoal =
+            await _financialGoalRepository.GetByIdAsync(
+                financialGoalId,
+                userId);
+
+        var savedContribution =
+            updatedGoal?.Contributions
+                .FirstOrDefault(item =>
+                    item.Id == created.Id);
+
+        return savedContribution == null
+            ? null
+            : MapContributionToDto(
+                savedContribution);
+    }
+
+    public async Task<GoalContributionDto?> AddInterestAsync(
+    int financialGoalId,
+    AddGoalInterestDto dto)
+    {
+        var userId = _currentUserService.UserId;
+
+        var goal =
+            await _financialGoalRepository.GetByIdAsync(
+                financialGoalId,
+                userId);
+
+        if (goal == null)
+            return null;
+
+        if (goal.Status == FinancialGoalStatus.Cancelled ||
+            goal.Status == FinancialGoalStatus.Paused)
+        {
+            throw new ArgumentException(
+                "Interest cannot be added to a paused or cancelled goal.");
+        }
+
+        if (dto.Amount <= 0)
+        {
+            throw new ArgumentException(
+                "The interest amount must be greater than zero.");
+        }
+
+        if (dto.InterestDate.Date < goal.StartDate.Date)
+        {
+            throw new ArgumentException(
+                "The interest date cannot be earlier than the goal start date.");
+        }
+
+        var notes =
+            string.IsNullOrWhiteSpace(dto.Notes)
+                ? "Interest earned"
+                : dto.Notes.Trim();
+
+        var contribution = new GoalContribution
+        {
+            UserId = userId,
+            FinancialGoalId = financialGoalId,
+            AccountId = goal.AccountId,
+            Amount = dto.Amount,
+            ContributionDate = dto.InterestDate,
+            Notes = notes,
+            ContributionType = GoalContributionType.Interest,
+            TransferId = null,
+            IsActive = true
+        };
+
+        var created =
+            await _financialGoalRepository
+                .AddContributionAsync(contribution);
+
+        await RecalculateGoalStatusAsync(
+            financialGoalId,
+            userId);
+
+        var updatedGoal =
+            await _financialGoalRepository.GetByIdAsync(
+                financialGoalId,
+                userId);
+
+        var savedContribution =
+            updatedGoal?.Contributions
+                .FirstOrDefault(item =>
+                    item.Id == created.Id);
+
+        return savedContribution == null
+            ? null
+            : MapContributionToDto(savedContribution);
+    }
+
+    private async Task RecalculateGoalStatusAsync(
+    int financialGoalId,
+    string userId)
+    {
+        var goal =
+            await _financialGoalRepository.GetByIdAsync(
+                financialGoalId,
+                userId);
+
+        if (goal == null)
+            return;
+
+        if (goal.Status ==
+                FinancialGoalStatus.Cancelled ||
+            goal.Status ==
+                FinancialGoalStatus.Paused)
+        {
+            return;
+        }
+
+        var savedAmount =
+            goal.StartingAmount +
+            goal.Contributions
+                .Where(contribution =>
+                    contribution.IsActive)
+                .Sum(contribution =>
+                    contribution.Amount);
+
+        var expectedStatus =
+            savedAmount >= goal.TargetAmount
+                ? FinancialGoalStatus.Completed
+                : FinancialGoalStatus.Active;
+
+        if (goal.Status == expectedStatus)
+            return;
+
+        goal.Status =
+            expectedStatus;
+
+        goal.UpdatedAt =
+            DateTime.UtcNow;
+
+        await _financialGoalRepository.UpdateAsync(
+            goal);
+    }
+
     public async Task<bool> DeleteContributionAsync(int financialGoalId,int contributionId)
     {
         var userId = _currentUserService.UserId;
@@ -222,10 +443,18 @@ public class FinancialGoalService : IFinancialGoalService
         if (goal == null)
             return false;
 
-        var deleted = await _financialGoalRepository.DeleteContributionAsync(contributionId,financialGoalId,userId);
+        var contribution =await _financialGoalRepository.GetContributionByIdAsync(contributionId,financialGoalId,userId);
 
-        if (!deleted)
+        if (contribution == null)
             return false;
+
+        if (contribution.TransferId.HasValue)
+        {
+            throw new ArgumentException(
+                "Transfer-generated contributions cannot be " +
+                "deleted directly. Update or delete the " +
+                "originating transfer instead.");
+        }
 
         var updatedGoal =
             await _financialGoalRepository.GetByIdAsync(financialGoalId,userId);
@@ -338,10 +567,12 @@ public class FinancialGoalService : IFinancialGoalService
         {
             Id = contribution.Id,
             Amount = contribution.Amount,
-            ContributionDate = contribution.ContributionDate,
+            ContributionDate =contribution.ContributionDate,
             Notes = contribution.Notes,
             AccountId = contribution.AccountId,
-            Account = contribution.Account?.Name ?? string.Empty
+            Account = contribution.Account?.Name ??string.Empty,
+            ContributionType =contribution.ContributionType,
+            TransferId = contribution.TransferId
         };
     }
     public async Task<FinancialGoalsSummaryDto> GetSummaryAsync()
@@ -468,4 +699,6 @@ public class FinancialGoalService : IFinancialGoalService
                 .ToList()
         };
     }
+
+
 }

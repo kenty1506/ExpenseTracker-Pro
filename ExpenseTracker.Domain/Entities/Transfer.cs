@@ -19,4 +19,6 @@ public class Transfer : BaseEntity
     public DateTime TransferDate { get; set; }
 
     public string Notes { get; set; } = string.Empty;
+    public ICollection<GoalContribution> GoalContributions
+    { get; set; } = new List<GoalContribution>();
 }

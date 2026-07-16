@@ -4,6 +4,7 @@ using ExpenseTracker.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using ExpenseTracker.Application.Common;
 using ExpenseTracker.Application.DTOs.Transfers;
+using ExpenseTracker.Domain.Enums;
 
 namespace ExpenseTracker.Infrastructure.Repositories;
 
@@ -51,69 +52,215 @@ public class TransferRepository : ITransferRepository
     }
 
     public async Task<Transfer> CreateAsync(
-        Transfer transfer)
+    Transfer transfer)
     {
-        _context.Transfers.Add(transfer);
+        var executionStrategy =
+            _context.Database.CreateExecutionStrategy();
 
-        await _context.SaveChangesAsync();
+        return await executionStrategy.ExecuteAsync(
+            async () =>
+            {
+                await using var databaseTransaction =
+                    await _context.Database
+                        .BeginTransactionAsync();
 
-        return transfer;
+                try
+                {
+                    _context.Transfers.Add(transfer);
+
+                    // Save first to generate transfer.Id.
+                    await _context.SaveChangesAsync();
+
+                    // Create automatic financial-goal contributions.
+                    await SynchronizeGoalContributionsAsync(
+                        transfer);
+
+                    await _context.SaveChangesAsync();
+
+                    // Recalculate after contributions are saved.
+                    await RecalculateAffectedGoalStatusesAsync(
+                        transfer.UserId,
+                        transfer.FromAccountId,
+                        transfer.ToAccountId);
+
+                    await _context.SaveChangesAsync();
+
+                    await databaseTransaction.CommitAsync();
+
+                    return transfer;
+                }
+                catch
+                {
+                    await databaseTransaction.RollbackAsync();
+                    throw;
+                }
+            });
     }
 
     public async Task<bool> UpdateAsync(
-        Transfer transfer)
+    Transfer transfer)
     {
-        var existing =
-            await _context.Transfers
-                .FirstOrDefaultAsync(x =>
-                    x.Id == transfer.Id &&
-                    x.UserId == transfer.UserId);
+        var executionStrategy =
+            _context.Database.CreateExecutionStrategy();
 
-        if (existing == null)
-            return false;
+        return await executionStrategy.ExecuteAsync(
+            async () =>
+            {
+                await using var databaseTransaction =
+                    await _context.Database
+                        .BeginTransactionAsync();
 
-        existing.FromAccountId =
-            transfer.FromAccountId;
+                try
+                {
+                    var existing =
+                        await _context.Transfers
+                            .Include(item =>
+                                item.GoalContributions)
+                            .FirstOrDefaultAsync(item =>
+                                item.Id == transfer.Id &&
+                                item.UserId ==
+                                    transfer.UserId);
 
-        existing.ToAccountId =
-            transfer.ToAccountId;
+                    if (existing == null)
+                    {
+                        await databaseTransaction
+                            .RollbackAsync();
 
-        existing.Amount =
-            transfer.Amount;
+                        return false;
+                    }
 
-        existing.TransferDate =
-            transfer.TransferDate;
+                    var oldFromAccountId =
+                        existing.FromAccountId;
 
-        existing.Notes =
-            transfer.Notes;
+                    var oldToAccountId =
+                        existing.ToAccountId;
 
-        existing.UpdatedAt =
-            DateTime.UtcNow;
+                    var oldContributions =
+                        existing.GoalContributions
+                            .Where(contribution =>
+                                contribution.TransferId ==
+                                    existing.Id)
+                            .ToList();
 
-        await _context.SaveChangesAsync();
+                    _context.GoalContributions.RemoveRange(
+                        oldContributions);
 
-        return true;
+                    existing.FromAccountId =
+                        transfer.FromAccountId;
+
+                    existing.ToAccountId =
+                        transfer.ToAccountId;
+
+                    existing.Amount =
+                        transfer.Amount;
+
+                    existing.TransferDate =
+                        transfer.TransferDate;
+
+                    existing.Notes =
+                        transfer.Notes;
+
+                    existing.UpdatedAt =
+                        DateTime.UtcNow;
+
+                    await _context.SaveChangesAsync();
+
+                    await SynchronizeGoalContributionsAsync(
+                        existing);
+
+                    await _context.SaveChangesAsync();
+
+                    var affectedAccountIds = new[]
+                    {
+                    oldFromAccountId,
+                    oldToAccountId,
+                    existing.FromAccountId,
+                    existing.ToAccountId
+                    }
+                    .Distinct()
+                    .ToArray();
+
+                    await RecalculateAffectedGoalStatusesAsync(
+                        existing.UserId,
+                        affectedAccountIds);
+
+                    await _context.SaveChangesAsync();
+
+                    await databaseTransaction.CommitAsync();
+
+                    return true;
+                }
+                catch
+                {
+                    await databaseTransaction.RollbackAsync();
+                    throw;
+                }
+            });
     }
 
     public async Task<bool> DeleteAsync(
-        int id,
-        string userId)
+    int id,
+    string userId)
     {
-        var transfer =
-            await _context.Transfers
-                .FirstOrDefaultAsync(x =>
-                    x.Id == id &&
-                    x.UserId == userId);
+        var executionStrategy =
+            _context.Database.CreateExecutionStrategy();
 
-        if (transfer == null)
-            return false;
+        return await executionStrategy.ExecuteAsync(
+            async () =>
+            {
+                await using var databaseTransaction =
+                    await _context.Database
+                        .BeginTransactionAsync();
 
-        _context.Transfers.Remove(transfer);
+                try
+                {
+                    var transfer =
+                        await _context.Transfers
+                            .Include(item =>
+                                item.GoalContributions)
+                            .FirstOrDefaultAsync(item =>
+                                item.Id == id &&
+                                item.UserId == userId);
 
-        await _context.SaveChangesAsync();
+                    if (transfer == null)
+                    {
+                        await databaseTransaction
+                            .RollbackAsync();
 
-        return true;
+                        return false;
+                    }
+
+                    var affectedAccountIds = new[]
+                    {
+                    transfer.FromAccountId,
+                    transfer.ToAccountId
+                    };
+
+                    _context.GoalContributions.RemoveRange(
+                        transfer.GoalContributions);
+
+                    _context.Transfers.Remove(transfer);
+
+                    await _context.SaveChangesAsync();
+
+                    await RecalculateAffectedGoalStatusesAsync(
+                        userId,
+                        affectedAccountIds);
+
+                    await _context.SaveChangesAsync();
+
+                    await databaseTransaction.CommitAsync();
+
+                    return true;
+                }
+                catch
+                {
+                    await databaseTransaction.RollbackAsync();
+                    throw;
+                }
+            });
     }
+
     public async Task<PagedResult<Transfer>> GetPagedAsync(
     string userId,
     TransferQueryDto query)
@@ -285,5 +432,169 @@ public class TransferRepository : ITransferRepository
                     .ThenBy(transfer =>
                         transfer.Id)
         };
+    }
+    private async Task SynchronizeGoalContributionsAsync(
+    Transfer transfer)
+    {
+        var accountIds = new[]
+        {
+        transfer.FromAccountId,
+        transfer.ToAccountId
+    };
+
+        var linkedGoals =
+            await _context.FinancialGoals
+                .Where(goal =>
+                    goal.UserId == transfer.UserId &&
+                    goal.IsActive &&
+                    goal.AccountId.HasValue &&
+                    accountIds.Contains(
+                        goal.AccountId.Value))
+                .ToListAsync();
+
+        foreach (var goal in linkedGoals)
+        {
+            if (goal.Status ==
+                    FinancialGoalStatus.Cancelled ||
+                goal.Status ==
+                    FinancialGoalStatus.Paused)
+            {
+                continue;
+            }
+
+            GoalContributionType contributionType;
+            decimal amount;
+            string action;
+
+            if (goal.AccountId ==
+                transfer.ToAccountId)
+            {
+                contributionType =
+                    GoalContributionType.TransferDeposit;
+
+                amount =
+                    transfer.Amount;
+
+                action =
+                    "deposit";
+            }
+            else if (goal.AccountId ==
+                     transfer.FromAccountId)
+            {
+                contributionType =
+                    GoalContributionType.TransferWithdrawal;
+
+                amount =
+                    -transfer.Amount;
+
+                action =
+                    "withdrawal";
+            }
+            else
+            {
+                continue;
+            }
+
+            var alreadyExists =
+                await _context.GoalContributions
+                    .AnyAsync(contribution =>
+                        contribution.FinancialGoalId ==
+                            goal.Id &&
+                        contribution.TransferId ==
+                            transfer.Id &&
+                        contribution.ContributionType ==
+                            contributionType);
+
+            if (alreadyExists)
+                continue;
+
+            var contribution =
+                new GoalContribution
+                {
+                    UserId =
+                        transfer.UserId,
+
+                    FinancialGoalId =
+                        goal.Id,
+
+                    AccountId =
+                        goal.AccountId,
+
+                    Amount =
+                        amount,
+
+                    ContributionDate =
+                        transfer.TransferDate,
+
+                    Notes =
+                        $"Automatic {action} from transfer " +
+                        $"#{transfer.Id}: {transfer.Notes}",
+
+                    ContributionType =
+                        contributionType,
+
+                    TransferId =
+                        transfer.Id,
+
+                    IsActive =
+                        true
+                };
+
+            _context.GoalContributions.Add(
+                contribution);
+        }
+    }
+    private async Task RecalculateAffectedGoalStatusesAsync(
+    string userId,
+    params int[] accountIds)
+    {
+        var distinctAccountIds =
+            accountIds
+                .Distinct()
+                .ToArray();
+
+        var goals =
+            await _context.FinancialGoals
+                .Include(goal =>
+                    goal.Contributions)
+                .Where(goal =>
+                    goal.UserId == userId &&
+                    goal.AccountId.HasValue &&
+                    distinctAccountIds.Contains(
+                        goal.AccountId.Value))
+                .ToListAsync();
+
+        foreach (var goal in goals)
+        {
+            if (goal.Status ==
+                    FinancialGoalStatus.Cancelled ||
+                goal.Status ==
+                    FinancialGoalStatus.Paused)
+            {
+                continue;
+            }
+
+            var savedAmount =
+                goal.StartingAmount +
+                goal.Contributions
+                    .Where(contribution =>
+                        contribution.IsActive)
+                    .Sum(contribution =>
+                        contribution.Amount);
+
+            var expectedStatus =
+                savedAmount >= goal.TargetAmount
+                    ? FinancialGoalStatus.Completed
+                    : FinancialGoalStatus.Active;
+
+            if (goal.Status == expectedStatus)
+                continue;
+
+            goal.Status =
+                expectedStatus;
+
+            goal.UpdatedAt =
+                DateTime.UtcNow;
+        }
     }
 }

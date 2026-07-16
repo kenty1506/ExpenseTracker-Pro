@@ -30,6 +30,11 @@ public interface IFinancialGoalRepository
     Task<GoalContribution> AddContributionAsync(
         GoalContribution contribution);
 
+    Task<GoalContribution?> GetContributionByIdAsync(
+     int contributionId,
+     int financialGoalId,
+     string userId);
+
     Task<bool> DeleteContributionAsync(
         int contributionId,
         int financialGoalId,
@@ -38,4 +43,6 @@ public interface IFinancialGoalRepository
     Task<PagedResult<FinancialGoal>> GetPagedAsync(
     string userId,
     FinancialGoalQueryDto query);
+
+
 }

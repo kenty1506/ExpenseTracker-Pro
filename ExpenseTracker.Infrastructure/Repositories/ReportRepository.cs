@@ -7,7 +7,6 @@ using Microsoft.EntityFrameworkCore;
 using ExpenseTracker.Domain.Entities;
 using System.Globalization;
 
-
 namespace ExpenseTracker.Infrastructure.Repositories;
 
 public class ReportRepository : IReportRepository

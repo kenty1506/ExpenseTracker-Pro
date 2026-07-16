@@ -21,7 +21,10 @@ public interface IFinancialGoalService
     Task<bool> DeleteContributionAsync(int financialGoalId,int contributionId);
 
     Task<FinancialGoalsSummaryDto> GetSummaryAsync();
-    Task<PagedResult<FinancialGoalDto>> GetPagedAsync(
-    FinancialGoalQueryDto query);
+    Task<PagedResult<FinancialGoalDto>> GetPagedAsync(FinancialGoalQueryDto query);
+
+    Task<GoalContributionDto?> AddAdjustmentAsync(int financialGoalId,AddGoalAdjustmentDto dto);
+
+    Task<GoalContributionDto?> AddInterestAsync(int financialGoalId,AddGoalInterestDto dto);
 
 }

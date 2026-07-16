@@ -126,8 +126,23 @@ public class FinancialGoalRepository : IFinancialGoalRepository
         return contribution;
     }
 
-    public async Task<bool> DeleteContributionAsync(
+    public async Task<GoalContribution?>
+    GetContributionByIdAsync(
         int contributionId,
+        int financialGoalId,
+        string userId)
+    {
+        return await _context.GoalContributions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(contribution =>
+                contribution.Id ==
+                    contributionId &&
+                contribution.FinancialGoalId ==
+                    financialGoalId &&
+                contribution.UserId ==
+                    userId);
+    }
+    public async Task<bool> DeleteContributionAsync(int contributionId,
         int financialGoalId,
         string userId)
     {
@@ -147,6 +162,7 @@ public class FinancialGoalRepository : IFinancialGoalRepository
 
         return true;
     }
+
     public async Task<PagedResult<FinancialGoal>> GetPagedAsync(
     string userId,
     FinancialGoalQueryDto query)

@@ -41,5 +41,22 @@ public class GoalContributionConfiguration :
             x.FinancialGoalId,
             x.ContributionDate
         });
+
+        builder.Property(x => x.ContributionType)
+        .IsRequired();
+
+        builder.HasOne(x => x.Transfer)
+            .WithMany(x => x.GoalContributions)
+            .HasForeignKey(x => x.TransferId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasIndex(x => new
+        {
+            x.FinancialGoalId,
+            x.TransferId,
+            x.ContributionType
+        })
+        .IsUnique()
+        .HasFilter("[TransferId] IS NOT NULL");
     }
 }
