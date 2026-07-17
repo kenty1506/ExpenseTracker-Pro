@@ -189,6 +189,29 @@ builder.Services
 var app = builder.Build();
 app.UseExceptionHandler();
 
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider
+        .GetRequiredService<ExpenseTrackerDbContext>();
+
+    await context.Database.OpenConnectionAsync();
+
+    await using var command =
+        context.Database.GetDbConnection().CreateCommand();
+
+    command.CommandText =
+        "SELECT CONCAT(@@SERVERNAME, '|', DB_NAME())";
+
+    var actualDatabase =
+        await command.ExecuteScalarAsync();
+
+    app.Logger.LogWarning(
+        "ACTUAL SQL TARGET: {ActualDatabase}",
+        actualDatabase);
+
+    await context.Database.CloseConnectionAsync();
+}
+
 if (app.Environment.IsDevelopment())
 {
     using var scope = app.Services.CreateScope();

@@ -26,4 +26,8 @@ public class GoalContribution : BaseEntity
     public int? TransferId { get; set; }
 
     public Transfer? Transfer { get; set; }
+
+    public int? TransactionId { get; set; }
+
+    public Transaction? Transaction { get; set; }
 }

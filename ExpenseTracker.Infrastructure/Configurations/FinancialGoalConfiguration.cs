@@ -61,5 +61,29 @@ public class FinancialGoalConfiguration : IEntityTypeConfiguration<FinancialGoal
             x.Name
         })
         .IsUnique();
+
+        builder.HasIndex(goal => new
+        {
+            goal.UserId,
+            goal.Status
+        });
+
+        builder.HasIndex(goal => new
+        {
+            goal.UserId,
+            goal.AccountId
+        });
+
+        builder.HasIndex(goal => new
+        {
+            goal.UserId,
+            goal.TargetDate
+        });
+
+        builder.HasIndex(goal => new
+        {
+            goal.UserId,
+            goal.Name
+        });
     }
 }

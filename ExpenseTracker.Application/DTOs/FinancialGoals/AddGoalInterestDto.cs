@@ -16,3 +16,5 @@ public class AddGoalInterestDto
     public string Notes { get; set; } =
         "Interest earned";
 }
+
+

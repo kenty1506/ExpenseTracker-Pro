@@ -488,4 +488,113 @@ public class FinancialGoalRepository : IFinancialGoalRepository
                         goal.Id)
         };
     }
+
+    public async Task<GoalContribution>
+    AddContributionWithTransactionAsync(
+        GoalContribution contribution,
+        Transaction transaction)
+    {
+        var executionStrategy =
+            _context.Database.CreateExecutionStrategy();
+
+        return await executionStrategy.ExecuteAsync(
+            async () =>
+            {
+                await using var databaseTransaction =
+                    await _context.Database
+                        .BeginTransactionAsync();
+
+                try
+                {
+                    _context.Transactions.Add(transaction);
+
+                    await _context.SaveChangesAsync();
+
+                    contribution.TransactionId =
+                        transaction.Id;
+
+                    _context.GoalContributions.Add(
+                        contribution);
+
+                    await _context.SaveChangesAsync();
+
+                    await databaseTransaction.CommitAsync();
+
+                    return contribution;
+                }
+                catch
+                {
+                    await databaseTransaction.RollbackAsync();
+                    throw;
+                }
+            });
+    }
+    public async Task<bool>
+    DeleteContributionWithTransactionAsync(
+        int contributionId,
+        int financialGoalId,
+        string userId)
+    {
+        var executionStrategy =
+            _context.Database.CreateExecutionStrategy();
+
+        return await executionStrategy.ExecuteAsync(
+            async () =>
+            {
+                await using var databaseTransaction =
+                    await _context.Database
+                        .BeginTransactionAsync();
+
+                try
+                {
+                    var contribution =
+                        await _context.GoalContributions
+                            .Include(item =>
+                                item.Transaction)
+                            .FirstOrDefaultAsync(item =>
+                                item.Id == contributionId &&
+                                item.FinancialGoalId ==
+                                    financialGoalId &&
+                                item.UserId == userId);
+
+                    if (contribution == null)
+                    {
+                        await databaseTransaction
+                            .RollbackAsync();
+
+                        return false;
+                    }
+
+                    if (contribution.TransferId.HasValue)
+                    {
+                        throw new ArgumentException(
+                            "Transfer-generated contributions cannot be " +
+                            "deleted directly. Delete or update the transfer.");
+                    }
+
+                    var transaction =
+                        contribution.Transaction;
+
+                    _context.GoalContributions.Remove(
+                        contribution);
+
+                    if (transaction != null)
+                    {
+                        _context.Transactions.Remove(
+                            transaction);
+                    }
+
+                    await _context.SaveChangesAsync();
+
+                    await databaseTransaction.CommitAsync();
+
+                    return true;
+                }
+                catch
+                {
+                    await databaseTransaction.RollbackAsync();
+                    throw;
+                }
+            });
+    }
 }

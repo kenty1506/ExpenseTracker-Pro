@@ -239,38 +239,17 @@ public class AccountRepository : IAccountRepository
                 + (
                     account.IncomingTransfers
                         .Sum(transfer =>
-                            (decimal?)transfer.Amount)
-                    ?? 0m
-                )
-                - (
+                            (decimal?)transfer.Amount)?? 0m)
+                    - (
                     account.OutgoingTransfers
-                        .Sum(transfer =>
-                            (decimal?)transfer.Amount)
-                    ?? 0m
-                )
-                <= maximumBalance);
+                        .Sum(transfer => (decimal?) transfer.Amount) ?? 0m) <= maximumBalance);
         }
 
-        accounts = ApplySorting(
-            accounts,
-            query.SortBy,
-            query.SortDirection);
-
-        var totalRecords =
-            await accounts.CountAsync();
-
-        var totalPages =
-            totalRecords == 0
-                ? 0
-                : (int)Math.Ceiling(
-                    totalRecords /
-                    (double)query.PageSize);
-
-        var items =
-            await accounts
-                .Skip(
-                    (query.Page - 1) *
-                    query.PageSize)
+        accounts = ApplySorting(accounts,query.SortBy,query.SortDirection);
+        var totalRecords =await accounts.CountAsync();
+        var totalPages = totalRecords == 0 ? 0 : (int)Math.Ceiling(totalRecords /(double)query.PageSize);
+        var items = await accounts
+                .Skip((query.Page - 1) * query.PageSize)
                 .Take(query.PageSize)
                 .ToListAsync();
 
@@ -283,102 +262,52 @@ public class AccountRepository : IAccountRepository
             Items = items
         };
     }
-    private static IQueryable<Account> ApplySorting(
-    IQueryable<Account> query,
-    string? sortBy,
-    string? sortDirection)
+    private static IQueryable<Account> ApplySorting(IQueryable<Account> query,string? sortBy,string? sortDirection)
     {
-        var descending =
-            string.Equals(
-                sortDirection,
-                "desc",
-                StringComparison.OrdinalIgnoreCase);
+        var descending = string.Equals(sortDirection,"desc", StringComparison.OrdinalIgnoreCase);
 
         return sortBy?.Trim().ToLowerInvariant() switch
         {
             "type" => descending
                 ? query
-                    .OrderByDescending(account =>
-                        account.Type)
-                    .ThenByDescending(account =>
-                        account.Id)
+                    .OrderByDescending(account =>account.Type)
+                    .ThenByDescending(account =>account.Id)
                 : query
-                    .OrderBy(account =>
-                        account.Type)
-                    .ThenBy(account =>
-                        account.Id),
+                    .OrderBy(account =>account.Type)
+                    .ThenBy(account =>account.Id),
 
             "openingbalance" => descending
                 ? query
-                    .OrderByDescending(account =>
-                        account.OpeningBalance)
-                    .ThenByDescending(account =>
-                        account.Id)
+                    .OrderByDescending(account =>account.OpeningBalance)
+                    .ThenByDescending(account =>account.Id)
                 : query
-                    .OrderBy(account =>
-                        account.OpeningBalance)
-                    .ThenBy(account =>
-                        account.Id),
+                    .OrderBy(account =>account.OpeningBalance)
+                    .ThenBy(account =>account.Id),
 
             "balance" => descending
                 ? query
                     .OrderByDescending(account =>
                         account.OpeningBalance
                         + account.Transactions
-                            .Where(transaction =>
-                                transaction.Type ==
-                                TransactionType.Income)
-                            .Sum(transaction =>
-                                (decimal?)transaction.Amount) ?? 0
-                        - account.Transactions
-                            .Where(transaction =>
-                                transaction.Type ==
-                                TransactionType.Expense)
-                            .Sum(transaction =>
-                                (decimal?)transaction.Amount) ?? 0
-                        + account.IncomingTransfers
-                            .Sum(transfer =>
-                                (decimal?)transfer.Amount) ?? 0
-                        - account.OutgoingTransfers
-                            .Sum(transfer =>
-                                (decimal?)transfer.Amount) ?? 0)
-                    .ThenByDescending(account =>
-                        account.Id)
+                            .Where(transaction =>transaction.Type ==TransactionType.Income)
+                            .Sum(transaction =>(decimal?)transaction.Amount) ?? 0- account.Transactions
+                            .Where(transaction =>transaction.Type ==TransactionType.Expense)
+                            .Sum(transaction =>(decimal?)transaction.Amount) ?? 0+ account.IncomingTransfers
+                            .Sum(transfer =>(decimal?)transfer.Amount) ?? 0- account.OutgoingTransfers
+                            .Sum(transfer =>(decimal?)transfer.Amount) ?? 0).ThenByDescending(account =>account.Id)
                 : query
-                    .OrderBy(account =>
-                        account.OpeningBalance
-                        + account.Transactions
-                            .Where(transaction =>
-                                transaction.Type ==
-                                TransactionType.Income)
-                            .Sum(transaction =>
-                                (decimal?)transaction.Amount) ?? 0
-                        - account.Transactions
-                            .Where(transaction =>
-                                transaction.Type ==
-                                TransactionType.Expense)
-                            .Sum(transaction =>
-                                (decimal?)transaction.Amount) ?? 0
-                        + account.IncomingTransfers
-                            .Sum(transfer =>
-                                (decimal?)transfer.Amount) ?? 0
-                        - account.OutgoingTransfers
-                            .Sum(transfer =>
-                                (decimal?)transfer.Amount) ?? 0)
-                    .ThenBy(account =>
-                        account.Id),
-
-            _ => descending
-                ? query
-                    .OrderByDescending(account =>
-                        account.Name)
-                    .ThenByDescending(account =>
-                        account.Id)
-                : query
-                    .OrderBy(account =>
-                        account.Name)
-                    .ThenBy(account =>
-                        account.Id)
+                    .OrderBy(account => account.OpeningBalance+ account.Transactions
+                            .Where(transaction => transaction.Type ==TransactionType.Income)
+                            .Sum(transaction => (decimal?)transaction.Amount) ?? 0- account.Transactions
+                            .Where(transaction => transaction.Type == TransactionType.Expense)
+                            .Sum(transaction => (decimal?)transaction.Amount) ?? 0+ account.IncomingTransfers
+                            .Sum(transfer => (decimal?)transfer.Amount) ?? 0 - account.OutgoingTransfers
+                            .Sum(transfer =>(decimal?)transfer.Amount) ?? 0)
+                    .ThenBy(account => account.Id), _ => descending? query
+                    .OrderByDescending(account => account.Name)
+                    .ThenByDescending(account => account.Id) : query
+                    .OrderBy(account => account.Name)
+                    .ThenBy(account => account.Id)
         };
     }
 }

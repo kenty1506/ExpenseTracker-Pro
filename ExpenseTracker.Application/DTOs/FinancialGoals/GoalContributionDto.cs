@@ -22,4 +22,6 @@ public class GoalContributionDto
     public bool IsAutomatic =>
         ContributionType == GoalContributionType.TransferDeposit ||
         ContributionType == GoalContributionType.TransferWithdrawal;
+
+    public int? TransactionId { get; set; }
 }

@@ -56,5 +56,18 @@ public class NotificationConfiguration :
         })
         .IsUnique()
         .HasFilter("[UniqueKey] IS NOT NULL");
+
+        builder.HasIndex(notification => new
+        {
+            notification.UserId,
+            notification.IsRead,
+            notification.CreatedAt
+        });
+
+        builder.HasIndex(notification => new
+        {
+            notification.UserId,
+            notification.CreatedAt
+        });
     }
 }

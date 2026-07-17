@@ -56,7 +56,42 @@ public class GoalContributionConfiguration :
             x.TransferId,
             x.ContributionType
         })
-        .IsUnique()
-        .HasFilter("[TransferId] IS NOT NULL");
+            .IsUnique()
+            .HasFilter("[TransferId] IS NOT NULL");
+
+        builder.HasIndex(contribution => new
+        {
+            contribution.FinancialGoalId,
+            contribution.TransferId,
+            contribution.ContributionType
+        })
+            .IsUnique()
+            .HasFilter("[TransferId] IS NOT NULL");
+
+        builder.HasIndex(contribution => new
+        {
+            contribution.UserId,
+            contribution.FinancialGoalId,
+            contribution.ContributionDate
+        });
+
+        builder.HasIndex(contribution => new
+        {
+            contribution.TransferId,
+            contribution.ContributionType
+        })
+            .HasFilter("[TransferId] IS NOT NULL");
+
+        builder.HasOne(contribution =>
+        contribution.Transaction)
+            .WithMany(transaction =>
+        transaction.GoalContributions)
+            .HasForeignKey(contribution =>
+        contribution.TransactionId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasIndex(contribution =>
+            contribution.TransactionId)
+            .HasFilter("[TransactionId] IS NOT NULL");
     }
 }

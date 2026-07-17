@@ -4,6 +4,7 @@ using ExpenseTracker.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ExpenseTracker.Infrastructure.Migrations
 {
     [DbContext(typeof(ExpenseTrackerDbContext))]
-    partial class ExpenseTrackerDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260716061847_AddPerformanceIndexes")]
+    partial class AddPerformanceIndexes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -291,9 +294,6 @@ namespace ExpenseTracker.Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
-                    b.Property<int?>("TransactionId")
-                        .HasColumnType("int");
-
                     b.Property<int?>("TransferId")
                         .HasColumnType("int");
 
@@ -308,9 +308,6 @@ namespace ExpenseTracker.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AccountId");
-
-                    b.HasIndex("TransactionId")
-                        .HasFilter("[TransactionId] IS NOT NULL");
 
                     b.HasIndex("TransferId", "ContributionType")
                         .HasFilter("[TransferId] IS NOT NULL");
@@ -839,11 +836,6 @@ namespace ExpenseTracker.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Transaction", "Transaction")
-                        .WithMany("GoalContributions")
-                        .HasForeignKey("TransactionId")
-                        .OnDelete(DeleteBehavior.Cascade);
-
                     b.HasOne("ExpenseTracker.Domain.Entities.Transfer", "Transfer")
                         .WithMany("GoalContributions")
                         .HasForeignKey("TransferId")
@@ -852,8 +844,6 @@ namespace ExpenseTracker.Infrastructure.Migrations
                     b.Navigation("Account");
 
                     b.Navigation("FinancialGoal");
-
-                    b.Navigation("Transaction");
 
                     b.Navigation("Transfer");
                 });
@@ -1007,11 +997,6 @@ namespace ExpenseTracker.Infrastructure.Migrations
                 });
 
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.Transfer", b =>
-                {
-                    b.Navigation("GoalContributions");
-                });
-
-            modelBuilder.Entity("Transaction", b =>
                 {
                     b.Navigation("GoalContributions");
                 });

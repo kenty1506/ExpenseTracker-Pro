@@ -44,5 +44,13 @@ public interface IFinancialGoalRepository
     string userId,
     FinancialGoalQueryDto query);
 
+    Task<GoalContribution> AddContributionWithTransactionAsync(
+    GoalContribution contribution,
+    Transaction transaction);
+
+    Task<bool> DeleteContributionWithTransactionAsync(
+        int contributionId,
+        int financialGoalId,
+        string userId);
 
 }

@@ -59,5 +59,18 @@ public class RecurringTransactionConfiguration :
             x.UserId,
             x.CategoryId
         });
+
+        builder.HasIndex(recurring => new
+        {
+            recurring.UserId,
+            recurring.IsActive,
+            recurring.NextRunDate
+        });
+
+        builder.HasIndex(recurring => new
+        {
+            recurring.UserId,
+            recurring.AccountId
+        });
     }
 }
