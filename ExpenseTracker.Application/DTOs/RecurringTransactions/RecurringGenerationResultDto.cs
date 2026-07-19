@@ -7,4 +7,4 @@ public class RecurringGenerationResultDto
     public int GeneratedCount { get; set; }
 
     public List<GeneratedRecurringTransactionDto> Generated { get; set; } = [];
-}
+}

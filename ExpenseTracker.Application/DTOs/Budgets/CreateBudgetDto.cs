@@ -15,4 +15,4 @@ public class CreateBudgetDto
 
     [Range(0.01, 999999999)]
     public decimal Amount { get; set; }
-}
+}

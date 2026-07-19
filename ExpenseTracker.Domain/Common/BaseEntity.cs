@@ -1,4 +1,6 @@
-﻿namespace ExpenseTracker.Domain.Common;
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace ExpenseTracker.Domain.Common;
 
 public abstract class BaseEntity
 {
@@ -9,4 +11,7 @@ public abstract class BaseEntity
     public DateTime? UpdatedAt { get; set; }
 
     public bool IsActive { get; set; } = true;
+
+    [Timestamp]
+    public byte[] RowVersion { get; set; } = [];
 }

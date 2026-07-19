@@ -26,4 +26,4 @@ public class FinancialGoalQueryDto : PagedQuery
     public DateTime? TargetDateTo { get; set; }
 
     public string? Search { get; set; }
-}
+}

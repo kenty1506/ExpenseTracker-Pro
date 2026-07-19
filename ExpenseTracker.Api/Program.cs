@@ -14,6 +14,15 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using System.Text.Json;
 using Asp.Versioning;
+using ExpenseTracker.Api.Middleware;
+using ExpenseTracker.Infrastructure.Identity;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Security.Claims;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.DataProtection;
+using System.IO.Compression;
+using Microsoft.AspNetCore.ResponseCompression;
+using ExpenseTracker.Api.Services.Momo;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -21,6 +30,55 @@ var builder = WebApplication.CreateBuilder(args);
 // Register application services
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<BrotliCompressionProvider>();
+    options.Providers.Add<GzipCompressionProvider>();
+});
+builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
+{
+    options.Level = CompressionLevel.Fastest;
+});
+builder.Services.Configure<GzipCompressionProviderOptions>(options =>
+{
+    options.Level = CompressionLevel.Fastest;
+});
+
+var allowedOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins")
+    .Get<string[]>() ?? [];
+
+if (allowedOrigins.Length > 0)
+{
+    builder.Services.AddCors(options =>
+    {
+        options.AddPolicy("WebClient", policy =>
+        {
+            policy.WithOrigins(allowedOrigins)
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials();
+        });
+    });
+}
+builder.Services.AddDataProtection()
+    .SetApplicationName("ExpenseTracker.Pro");
+
+var jwtSection = builder.Configuration.GetSection(
+    JwtSettings.SectionName);
+var jwtSettings = jwtSection.Get<JwtSettings>() ??
+    throw new InvalidOperationException(
+        "The JWT configuration section is missing.");
+
+ValidateJwtSettings(jwtSettings);
+builder.Services.Configure<JwtSettings>(jwtSection);
+builder.Services.Configure<GoogleAuthSettings>(
+    builder.Configuration.GetSection(GoogleAuthSettings.SectionName));
+builder.Services.Configure<TwilioVerifySettings>(
+    builder.Configuration.GetSection(TwilioVerifySettings.SectionName));
+builder.Services.Configure<SendGridSettings>(
+    builder.Configuration.GetSection(SendGridSettings.SectionName));
 builder.Services
     .AddApiVersioning(options =>
     {
@@ -129,11 +187,19 @@ builder.Services.AddScoped<ITransactionService, TransactionService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddInfrastructureServices(builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("DefaultConnection is missing."));
-
-// JWT configuration
-var jwtKey = builder.Configuration["Jwt:Key"]?? throw new InvalidOperationException("The JWT signing key is missing.");
-var jwtIssuer = builder.Configuration["Jwt:Issuer"]?? throw new InvalidOperationException("The JWT issuer is missing.");
-var jwtAudience = builder.Configuration["Jwt:Audience"] ?? throw new InvalidOperationException("The JWT audience is missing.");
+builder.Services.AddScoped<IGoogleIdentityVerifier, GoogleIdentityVerifier>();
+builder.Services.AddHttpClient<
+    IMobileVerificationService,
+    TwilioMobileVerificationService>(client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(15);
+    });
+builder.Services.AddHttpClient<
+    IPasswordResetEmailSender,
+    SendGridPasswordResetEmailSender>(client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(15);
+    });
 
 builder.Services
     .AddAuthentication(options =>
@@ -147,13 +213,14 @@ builder.Services
             new TokenValidationParameters
             {
                 ValidateIssuer = true,
-                ValidIssuer = jwtIssuer,
+                ValidIssuer = jwtSettings.Issuer,
 
                 ValidateAudience = true,
-                ValidAudience = jwtAudience,
+                ValidAudience = jwtSettings.Audience,
 
                 ValidateIssuerSigningKey = true,
-                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+                IssuerSigningKey = new SymmetricSecurityKey(
+                    Encoding.UTF8.GetBytes(jwtSettings.Key)),
 
                 ValidateLifetime = true,
                 ClockSkew = TimeSpan.Zero
@@ -161,6 +228,84 @@ builder.Services
     });
 
 builder.Services.AddAuthorization();
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode =
+        StatusCodes.Status429TooManyRequests;
+
+    options.GlobalLimiter =
+        PartitionedRateLimiter.Create<HttpContext, string>(context =>
+            RateLimitPartition.GetFixedWindowLimiter(
+                GetRateLimitPartitionKey(context),
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 120,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0,
+                    AutoReplenishment = true
+                }));
+
+    options.AddPolicy("authentication", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            GetClientPartitionKey(context),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+
+    options.AddPolicy("token", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            GetClientPartitionKey(context),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+
+    options.AddPolicy("verification", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            GetClientPartitionKey(context),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 3,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+
+    options.AddPolicy("momo", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            GetRateLimitPartitionKey(context),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 20,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+
+    options.OnRejected = async (rejectedContext, cancellationToken) =>
+    {
+        rejectedContext.HttpContext.Response.ContentType =
+            "application/problem+json";
+
+        await rejectedContext.HttpContext.Response.WriteAsJsonAsync(
+            new
+            {
+                type = "https://httpstatuses.com/429",
+                title = "Too many requests",
+                status = StatusCodes.Status429TooManyRequests,
+                detail = "Please wait before trying again.",
+                traceId = rejectedContext.HttpContext.TraceIdentifier
+            },
+            cancellationToken);
+    };
+});
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 builder.Services.AddHttpContextAccessor();
@@ -173,6 +318,9 @@ builder.Services.AddScoped<ITransferService,TransferService>();
 builder.Services.AddScoped<IFinancialGoalService,FinancialGoalService>();
 builder.Services.AddScoped<INotificationService,NotificationService>();
 builder.Services.AddScoped<INotificationEngineService, NotificationEngineService>();
+builder.Services.AddScoped<IAuditTrailService, AuditTrailService>();
+builder.Services.AddSingleton<MomoConversationEngine>();
+builder.Services.AddScoped<IMomoAssistantService, MomoAssistantService>();
 builder.Services.AddHostedService<ExpenseTrackerBackgroundService>();
 builder.Services.AddScoped<ISystemBackgroundProcessor, SystemBackgroundProcessor>();
 builder.Services.AddEndpointsApiExplorer();
@@ -187,6 +335,9 @@ builder.Services
         tags: ["database", "ready"]);
 
 var app = builder.Build();
+app.UseResponseCompression();
+app.UseMiddleware<CorrelationIdMiddleware>();
+app.UseMiddleware<AuditLogMiddleware>();
 app.UseExceptionHandler();
 
 using (var scope = app.Services.CreateScope())
@@ -222,11 +373,14 @@ if (app.Environment.IsDevelopment())
 
     await context.Database.MigrateAsync();
 
-    var seeder =
-        scope.ServiceProvider
+    if (builder.Configuration.GetValue<bool>(
+        "DevelopmentSeeder:Enabled"))
+    {
+        var seeder = scope.ServiceProvider
             .GetRequiredService<DevelopmentDataSeeder>();
 
-    await seeder.SeedAsync();
+        await seeder.SeedAsync();
+    }
 }
 
 if (app.Environment.IsDevelopment())
@@ -253,9 +407,31 @@ if (app.Environment.IsDevelopment())
 }
 
 
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
+
 app.UseHttpsRedirection();
 
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["Cache-Control"] = "no-store";
+    context.Response.Headers["Referrer-Policy"] = "no-referrer";
+    context.Response.Headers["Permissions-Policy"] =
+        "camera=(), microphone=(), geolocation=()";
+
+    await next();
+});
+
+app.UseRouting();
+if (allowedOrigins.Length > 0)
+{
+    app.UseCors("WebClient");
+}
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapHealthChecks(
@@ -321,8 +497,9 @@ static async Task WriteHealthResponse(
                     entry.Value.Description,
                 duration =
                     entry.Value.Duration.TotalMilliseconds,
-                error =
-                    entry.Value.Exception?.Message
+                error = entry.Value.Exception is null
+                    ? null
+                    : "The health check failed."
             }),
 
         timestamp = DateTime.UtcNow
@@ -335,4 +512,53 @@ static async Task WriteHealthResponse(
             {
                 WriteIndented = true
             }));
+}
+
+static string GetRateLimitPartitionKey(HttpContext context)
+{
+    return context.User.FindFirstValue(ClaimTypes.NameIdentifier) ??
+        GetClientPartitionKey(context);
+}
+
+static string GetClientPartitionKey(HttpContext context)
+{
+    return context.Connection.RemoteIpAddress?.ToString() ??
+        "unknown-client";
+}
+
+static void ValidateJwtSettings(JwtSettings settings)
+{
+    if (string.IsNullOrWhiteSpace(settings.Key) ||
+        Encoding.UTF8.GetByteCount(settings.Key) < 32)
+    {
+        throw new InvalidOperationException(
+            "Jwt:Key must be supplied securely and contain at least 32 bytes. " +
+            "For local development, use 'dotnet user-secrets set Jwt:Key <value>'. " +
+            "For deployments, set the Jwt__Key environment variable.");
+    }
+
+    if (settings.Key.Count(character => character == '.') == 2)
+    {
+        throw new InvalidOperationException(
+            "Jwt:Key appears to be a JWT. Supply a random signing secret instead.");
+    }
+
+    if (string.IsNullOrWhiteSpace(settings.Issuer) ||
+        string.IsNullOrWhiteSpace(settings.Audience))
+    {
+        throw new InvalidOperationException(
+            "Jwt:Issuer and Jwt:Audience are required.");
+    }
+
+    if (settings.DurationInMinutes is < 5 or > 60)
+    {
+        throw new InvalidOperationException(
+            "Jwt:DurationInMinutes must be between 5 and 60.");
+    }
+
+    if (settings.RefreshTokenDurationInDays is < 1 or > 90)
+    {
+        throw new InvalidOperationException(
+            "Jwt:RefreshTokenDurationInDays must be between 1 and 90.");
+    }
 }

@@ -73,4 +73,4 @@ public class RecurringTransactionConfiguration :
             recurring.AccountId
         });
     }
-}
+}

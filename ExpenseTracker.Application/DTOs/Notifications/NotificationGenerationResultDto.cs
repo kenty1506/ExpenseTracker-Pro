@@ -7,4 +7,4 @@ public class NotificationGenerationResultDto
     public int SkippedCount { get; set; }
 
     public List<NotificationDto> GeneratedNotifications { get; set; } = [];
-}
+}

@@ -28,4 +28,4 @@ public class Notification : BaseEntity
     public string? ActionUrl { get; set; }
 
     public string? UniqueKey { get; set; }
-}
+}

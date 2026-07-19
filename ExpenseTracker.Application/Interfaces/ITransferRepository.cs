@@ -23,4 +23,4 @@ public interface ITransferRepository
         int id,
         string userId);
     Task<PagedResult<Transfer>> GetPagedAsync(string userId, TransferQueryDto query);
-}
+}

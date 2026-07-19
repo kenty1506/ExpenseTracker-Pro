@@ -31,4 +31,4 @@ public class UpcomingRecurringTransactionDto
     public bool IsDueToday { get; set; }
 
     public bool IsOverdue { get; set; }
-}
+}

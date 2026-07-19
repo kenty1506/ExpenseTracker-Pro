@@ -4,4 +4,4 @@ public interface ISystemBackgroundProcessor
 {
     Task ProcessAsync(
         CancellationToken cancellationToken = default);
-}
+}

@@ -41,4 +41,4 @@ public class FinancialGoalDto
     public string Account { get; set; } = string.Empty;
 
     public List<GoalContributionDto> Contributions { get; set; } = [];
-}
+}

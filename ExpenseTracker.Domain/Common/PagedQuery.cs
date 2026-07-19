@@ -30,4 +30,4 @@ public abstract class PagedQuery
     public string SortBy { get; set; } = "date";
 
     public string SortDirection { get; set; } = "desc";
-}
+}

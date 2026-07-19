@@ -15,4 +15,4 @@ public class TopCategoryDto
     public decimal Percentage { get; set; }
 
     public int TransactionCount { get; set; }
-}
+}

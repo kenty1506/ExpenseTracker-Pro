@@ -21,4 +21,4 @@ public interface IRecurringTransactionService
     Task<RecurringGenerationResultDto> GenerateDueForUserAsync(string userId, DateTime? throughDate = null);
 
 
-}
+}

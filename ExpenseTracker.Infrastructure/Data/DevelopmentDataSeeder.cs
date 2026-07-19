@@ -3,26 +3,34 @@ using ExpenseTracker.Domain.Enums;
 using ExpenseTracker.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace ExpenseTracker.Infrastructure.Data;
 
 public class DevelopmentDataSeeder
 {
-    private const string TestEmail =
-        "testuser@expensetracker.local";
-
-    private const string TestPassword =
-        "Password1";
-
     private readonly ExpenseTrackerDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly string _testEmail;
+    private readonly string _testPassword;
 
     public DevelopmentDataSeeder(
         ExpenseTrackerDbContext context,
-        UserManager<ApplicationUser> userManager)
+        UserManager<ApplicationUser> userManager,
+        IConfiguration configuration)
     {
         _context = context;
         _userManager = userManager;
+        _testEmail = configuration["DevelopmentSeeder:Email"]?.Trim() ??
+            string.Empty;
+        _testPassword = configuration["DevelopmentSeeder:Password"] ??
+            string.Empty;
+
+        if (string.IsNullOrWhiteSpace(_testEmail))
+        {
+            throw new InvalidOperationException(
+                "Development seeding is enabled, but DevelopmentSeeder:Email is missing.");
+        }
     }
 
     public async Task SeedAsync()
@@ -48,6 +56,11 @@ public class DevelopmentDataSeeder
             accounts,
             now);
 
+        await SeedTransfersAsync(
+            user.Id,
+            accounts,
+            now);
+
         await SeedBudgetsAsync(
             user.Id,
             categories,
@@ -58,28 +71,49 @@ public class DevelopmentDataSeeder
             categories,
             accounts,
             now);
+
+        await SeedFinancialGoalsAsync(
+            user.Id,
+            categories,
+            accounts,
+            now);
+
+        await SeedNotificationsAsync(
+            user.Id,
+            now);
+
+        await SeedAuditLogsAsync(
+            user.Id,
+            now);
     }
 
     private async Task<ApplicationUser> CreateUserAsync()
     {
         var existingUser =
-            await _userManager.FindByEmailAsync(TestEmail);
+            await _userManager.FindByEmailAsync(_testEmail);
 
         if (existingUser != null)
             return existingUser;
 
+        if (string.IsNullOrWhiteSpace(_testPassword))
+        {
+            throw new InvalidOperationException(
+                "The configured development user does not exist. Register it first " +
+                "or store DevelopmentSeeder:Password in .NET user secrets.");
+        }
+
         var user = new ApplicationUser
         {
             FullName = "Expense Tracker Test User",
-            Email = TestEmail,
-            UserName = TestEmail,
+            Email = _testEmail,
+            UserName = _testEmail,
             EmailConfirmed = true
         };
 
         var result =
             await _userManager.CreateAsync(
                 user,
-                TestPassword);
+                _testPassword);
 
         if (!result.Succeeded)
         {
@@ -98,12 +132,6 @@ public class DevelopmentDataSeeder
         string userId,
         DateTime now)
     {
-        if (await _context.Categories.AnyAsync(
-                x => x.UserId == userId))
-        {
-            return;
-        }
-
         var categories = new[]
         {
             CreateCategory(
@@ -167,10 +195,25 @@ public class DevelopmentDataSeeder
                 "Freelance",
                 "#1ABC9C",
                 "work",
+                now),
+
+            CreateCategory(
+                userId,
+                "Financial Goal Funding",
+                "#0EA5E9",
+                "flag",
                 now)
         };
 
-        _context.Categories.AddRange(categories);
+        var existingNames = (await _context.Categories
+                .Where(category => category.UserId == userId)
+                .Select(category => category.Name)
+                .ToListAsync())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        _context.Categories.AddRange(
+            categories.Where(category =>
+                !existingNames.Contains(category.Name)));
 
         await _context.SaveChangesAsync();
     }
@@ -179,12 +222,6 @@ public class DevelopmentDataSeeder
         string userId,
         DateTime now)
     {
-        if (await _context.Accounts.AnyAsync(
-                x => x.UserId == userId))
-        {
-            return;
-        }
-
         var accounts = new[]
         {
             CreateAccount(
@@ -233,7 +270,15 @@ public class DevelopmentDataSeeder
                 now)
         };
 
-        _context.Accounts.AddRange(accounts);
+        var existingNames = (await _context.Accounts
+                .Where(account => account.UserId == userId)
+                .Select(account => account.Name)
+                .ToListAsync())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        _context.Accounts.AddRange(
+            accounts.Where(account =>
+                !existingNames.Contains(account.Name)));
 
         await _context.SaveChangesAsync();
     }
@@ -741,6 +786,631 @@ public class DevelopmentDataSeeder
         await _context.SaveChangesAsync();
     }
 
+    private async Task SeedTransfersAsync(
+        string userId,
+        IReadOnlyDictionary<string, Account> accounts,
+        DateTime now)
+    {
+        if (await _context.Transfers.AnyAsync(
+                transfer => transfer.UserId == userId))
+        {
+            return;
+        }
+
+        var transfers = new[]
+        {
+            CreateTransfer(
+                userId,
+                accounts["BPI Savings"],
+                accounts["GCash"],
+                2_500,
+                now.AddDays(-24),
+                "Monthly GCash funding",
+                now),
+
+            CreateTransfer(
+                userId,
+                accounts["BPI Savings"],
+                accounts["Maya Wallet"],
+                1_500,
+                now.AddDays(-14),
+                "Travel wallet funding",
+                now),
+
+            CreateTransfer(
+                userId,
+                accounts["Cash"],
+                accounts["BPI Savings"],
+                2_000,
+                now.AddDays(-7),
+                "Cash deposit",
+                now)
+        };
+
+        _context.Transfers.AddRange(transfers);
+        await _context.SaveChangesAsync();
+    }
+
+    private async Task SeedFinancialGoalsAsync(
+        string userId,
+        IReadOnlyDictionary<string, Category> categories,
+        IReadOnlyDictionary<string, Account> accounts,
+        DateTime now)
+    {
+        if (await _context.FinancialGoals.AnyAsync(
+                goal => goal.UserId == userId))
+        {
+            return;
+        }
+
+        var goals = new[]
+        {
+            CreateGoal(
+                userId,
+                "Emergency Fund",
+                100_000,
+                12_000,
+                now.Date.AddMonths(-6),
+                now.Date.AddMonths(18),
+                FinancialGoalStatus.Active,
+                accounts["BPI Savings"],
+                "#EF4444",
+                "health_and_safety",
+                "Build six months of essential expenses.",
+                now),
+
+            CreateGoal(
+                userId,
+                "Japan Trip",
+                80_000,
+                5_000,
+                now.Date.AddMonths(-2),
+                now.Date.AddMonths(10),
+                FinancialGoalStatus.Active,
+                accounts["Maya Wallet"],
+                "#3B82F6",
+                "flight",
+                "Travel savings for flights, hotel, food, and activities.",
+                now),
+
+            CreateGoal(
+                userId,
+                "New Laptop",
+                60_000,
+                60_000,
+                now.Date.AddMonths(-8),
+                now.Date.AddMonths(-1),
+                FinancialGoalStatus.Completed,
+                accounts["BPI Savings"],
+                "#8B5CF6",
+                "laptop_mac",
+                "Completed technology replacement fund.",
+                now),
+
+            CreateGoal(
+                userId,
+                "Certification Fund",
+                25_000,
+                4_000,
+                now.Date.AddMonths(-3),
+                now.Date.AddMonths(8),
+                FinancialGoalStatus.Paused,
+                accounts["GCash"],
+                "#F59E0B",
+                "school",
+                "Temporarily paused professional certification fund.",
+                now)
+        };
+
+        _context.FinancialGoals.AddRange(goals);
+        await _context.SaveChangesAsync();
+
+        var fundingCategory = categories["Financial Goal Funding"];
+        var transactions = new[]
+        {
+            CreateTransaction(
+                userId,
+                TransactionType.Income,
+                fundingCategory,
+                accounts["BPI Savings"],
+                5_000,
+                "Emergency Fund contribution",
+                now.AddDays(-45),
+                now),
+
+            CreateTransaction(
+                userId,
+                TransactionType.Income,
+                fundingCategory,
+                accounts["BPI Savings"],
+                450,
+                "Emergency Fund interest",
+                now.AddDays(-15),
+                now),
+
+            CreateTransaction(
+                userId,
+                TransactionType.Income,
+                fundingCategory,
+                accounts["Maya Wallet"],
+                7_500,
+                "Japan Trip contribution",
+                now.AddDays(-20),
+                now)
+        };
+
+        _context.Transactions.AddRange(transactions);
+        await _context.SaveChangesAsync();
+
+        var goalContributions = new[]
+        {
+            CreateGoalContribution(
+                userId,
+                goals[0],
+                accounts["BPI Savings"],
+                5_000,
+                now.AddDays(-45),
+                "Monthly savings contribution",
+                GoalContributionType.Manual,
+                transactions[0],
+                now),
+
+            CreateGoalContribution(
+                userId,
+                goals[0],
+                accounts["BPI Savings"],
+                450,
+                now.AddDays(-15),
+                "Interest earned",
+                GoalContributionType.Interest,
+                transactions[1],
+                now),
+
+            CreateGoalContribution(
+                userId,
+                goals[1],
+                accounts["Maya Wallet"],
+                7_500,
+                now.AddDays(-20),
+                "Travel savings contribution",
+                GoalContributionType.Manual,
+                transactions[2],
+                now)
+        };
+
+        _context.GoalContributions.AddRange(goalContributions);
+        await _context.SaveChangesAsync();
+    }
+
+    private async Task SeedNotificationsAsync(
+        string userId,
+        DateTime now)
+    {
+        if (await _context.Notifications.AnyAsync(
+                notification => notification.UserId == userId))
+        {
+            return;
+        }
+
+        var goals = await _context.FinancialGoals
+            .Where(goal => goal.UserId == userId)
+            .ToDictionaryAsync(goal => goal.Name);
+
+        var notifications = new[]
+        {
+            CreateNotification(
+                userId,
+                NotificationType.BudgetWarning,
+                NotificationPriority.High,
+                "Food budget is nearing its limit",
+                "You have used most of this month's Food budget.",
+                false,
+                now.AddHours(-3),
+                "Budget",
+                null,
+                "/budgets",
+                $"seed:{userId}:budget-warning",
+                now),
+
+            CreateNotification(
+                userId,
+                NotificationType.RecurringDue,
+                NotificationPriority.Normal,
+                "Upcoming subscription",
+                "Your Spotify subscription is due soon.",
+                false,
+                now.AddDays(-1),
+                "RecurringTransaction",
+                null,
+                "/recurring-transactions",
+                $"seed:{userId}:recurring-due",
+                now),
+
+            CreateNotification(
+                userId,
+                NotificationType.GoalCompleted,
+                NotificationPriority.High,
+                "Goal completed",
+                "Your New Laptop savings goal is complete.",
+                false,
+                now.AddDays(-2),
+                "FinancialGoal",
+                goals["New Laptop"].Id,
+                $"/financial-goals/{goals["New Laptop"].Id}",
+                $"seed:{userId}:goal-completed",
+                now),
+
+            CreateNotification(
+                userId,
+                NotificationType.AccountLowBalance,
+                NotificationPriority.Critical,
+                "Check your Cash balance",
+                "Your available Cash balance may need replenishment.",
+                false,
+                now.AddDays(-3),
+                "Account",
+                null,
+                "/accounts",
+                $"seed:{userId}:low-balance",
+                now),
+
+            CreateNotification(
+                userId,
+                NotificationType.MonthlySummary,
+                NotificationPriority.Low,
+                "Monthly financial summary ready",
+                "Your monthly income, expenses, savings, and budget summary is ready.",
+                true,
+                now.AddDays(-5),
+                "Report",
+                null,
+                "/reports",
+                $"seed:{userId}:monthly-summary",
+                now)
+        };
+
+        _context.Notifications.AddRange(notifications);
+        await _context.SaveChangesAsync();
+    }
+
+    private async Task SeedAuditLogsAsync(
+        string userId,
+        DateTime now)
+    {
+        const string tracePrefix = "dev-seed-audit-";
+
+        var accountId = await _context.Accounts
+            .Where(account =>
+                account.UserId == userId &&
+                account.Name == "BPI Savings")
+            .Select(account => (int?)account.Id)
+            .FirstOrDefaultAsync();
+
+        var categoryId = await _context.Categories
+            .Where(category =>
+                category.UserId == userId &&
+                category.Name == "Food")
+            .Select(category => (int?)category.Id)
+            .FirstOrDefaultAsync();
+
+        var transactionId = await _context.Transactions
+            .Where(transaction => transaction.UserId == userId)
+            .OrderBy(transaction => transaction.Id)
+            .Select(transaction => (int?)transaction.Id)
+            .FirstOrDefaultAsync();
+
+        var transferId = await _context.Transfers
+            .Where(transfer => transfer.UserId == userId)
+            .OrderBy(transfer => transfer.Id)
+            .Select(transfer => (int?)transfer.Id)
+            .FirstOrDefaultAsync();
+
+        var budgetId = await _context.Budgets
+            .Where(budget => budget.UserId == userId)
+            .OrderBy(budget => budget.Id)
+            .Select(budget => (int?)budget.Id)
+            .FirstOrDefaultAsync();
+
+        var recurringTransactionId =
+            await _context.RecurringTransactions
+                .Where(recurring => recurring.UserId == userId)
+                .OrderBy(recurring => recurring.Id)
+                .Select(recurring => (int?)recurring.Id)
+                .FirstOrDefaultAsync();
+
+        var financialGoalId = await _context.FinancialGoals
+            .Where(goal =>
+                goal.UserId == userId &&
+                goal.Name == "Emergency Fund")
+            .Select(goal => (int?)goal.Id)
+            .FirstOrDefaultAsync();
+
+        var notificationId = await _context.Notifications
+            .Where(notification => notification.UserId == userId)
+            .OrderBy(notification => notification.Id)
+            .Select(notification => (int?)notification.Id)
+            .FirstOrDefaultAsync();
+
+        string? EntityId(int? id) => id?.ToString();
+
+        string Route(string module, int? id, string? suffix = null)
+        {
+            var route = id.HasValue
+                ? $"/api/v1/{module}/{id.Value}"
+                : $"/api/v1/{module}";
+
+            return string.IsNullOrWhiteSpace(suffix)
+                ? route
+                : $"{route}/{suffix}";
+        }
+
+        AuditLog Log(
+            int sequence,
+            string method,
+            string module,
+            string operation,
+            string? entityId,
+            string route,
+            string action,
+            int statusCode,
+            long elapsedMilliseconds,
+            DateTime createdAtUtc)
+        {
+            return new AuditLog
+            {
+                UserId = userId,
+                Method = method,
+                Module = module,
+                Operation = operation,
+                EntityId = entityId,
+                Route = route,
+                Action = action,
+                StatusCode = statusCode,
+                Succeeded = statusCode is >= 200 and < 400,
+                ElapsedMilliseconds = elapsedMilliseconds,
+                TraceId = $"{tracePrefix}{sequence:D2}",
+                CreatedAtUtc = createdAtUtc
+            };
+        }
+
+        var sampleLogs = new[]
+        {
+            Log(
+                1,
+                "POST",
+                "Auth",
+                "Login",
+                null,
+                "/api/v1/auth/login",
+                "Auth.Login",
+                200,
+                142,
+                now.AddDays(-14)),
+
+            Log(
+                2,
+                "POST",
+                "Accounts",
+                "Create",
+                EntityId(accountId),
+                "/api/v1/accounts",
+                "Accounts.Create",
+                201,
+                96,
+                now.AddDays(-13)),
+
+            Log(
+                3,
+                "POST",
+                "Categories",
+                "Create",
+                EntityId(categoryId),
+                "/api/v1/categories",
+                "Categories.Create",
+                201,
+                54,
+                now.AddDays(-12)),
+
+            Log(
+                4,
+                "POST",
+                "Transactions",
+                "Create",
+                EntityId(transactionId),
+                "/api/v1/transactions",
+                "Transactions.Create",
+                201,
+                88,
+                now.AddDays(-11).AddHours(-2)),
+
+            Log(
+                5,
+                "PUT",
+                "Transactions",
+                "Update",
+                EntityId(transactionId),
+                Route("transactions", transactionId),
+                "Transactions.Update",
+                200,
+                73,
+                now.AddDays(-10)),
+
+            Log(
+                6,
+                "POST",
+                "Transfers",
+                "Create",
+                EntityId(transferId),
+                "/api/v1/transfers",
+                "Transfers.Create",
+                201,
+                105,
+                now.AddDays(-9).AddHours(-3)),
+
+            Log(
+                7,
+                "PUT",
+                "Transfers",
+                "Update",
+                EntityId(transferId),
+                Route("transfers", transferId),
+                "Transfers.Update",
+                200,
+                91,
+                now.AddDays(-9)),
+
+            Log(
+                8,
+                "POST",
+                "Budgets",
+                "Create",
+                EntityId(budgetId),
+                "/api/v1/budgets",
+                "Budgets.Create",
+                201,
+                67,
+                now.AddDays(-8)),
+
+            Log(
+                9,
+                "PUT",
+                "Budgets",
+                "Update",
+                EntityId(budgetId),
+                Route("budgets", budgetId),
+                "Budgets.Update",
+                200,
+                61,
+                now.AddDays(-7)),
+
+            Log(
+                10,
+                "POST",
+                "RecurringTransactions",
+                "Create",
+                EntityId(recurringTransactionId),
+                "/api/v1/recurring-transactions",
+                "RecurringTransactions.Create",
+                201,
+                84,
+                now.AddDays(-6)),
+
+            Log(
+                11,
+                "POST",
+                "RecurringTransactions",
+                "GenerateDue",
+                null,
+                "/api/v1/recurring-transactions/generate-due",
+                "RecurringTransactions.GenerateDue",
+                200,
+                126,
+                now.AddDays(-5)),
+
+            Log(
+                12,
+                "POST",
+                "FinancialGoals",
+                "Create",
+                EntityId(financialGoalId),
+                "/api/v1/financial-goals",
+                "FinancialGoals.Create",
+                201,
+                113,
+                now.AddDays(-4).AddHours(-2)),
+
+            Log(
+                13,
+                "POST",
+                "FinancialGoals",
+                "AddContribution",
+                EntityId(financialGoalId),
+                Route("financial-goals", financialGoalId, "contributions"),
+                "FinancialGoals.AddContribution",
+                200,
+                119,
+                now.AddDays(-4)),
+
+            Log(
+                14,
+                "PATCH",
+                "Notifications",
+                "MarkAsRead",
+                EntityId(notificationId),
+                Route("notifications", notificationId, "read"),
+                "Notifications.MarkAsRead",
+                204,
+                42,
+                now.AddDays(-3)),
+
+            Log(
+                15,
+                "POST",
+                "Notifications",
+                "Generate",
+                null,
+                "/api/v1/notifications/generate",
+                "Notifications.Generate",
+                200,
+                157,
+                now.AddDays(-2)),
+
+            Log(
+                16,
+                "DELETE",
+                "Transactions",
+                "Delete",
+                "999999",
+                "/api/v1/transactions/999999",
+                "Transactions.Delete",
+                404,
+                39,
+                now.AddHours(-6)),
+
+            Log(
+                17,
+                "POST",
+                "Transfers",
+                "Create",
+                null,
+                "/api/v1/transfers",
+                "Transfers.Create",
+                409,
+                64,
+                now.AddHours(-2)),
+
+            Log(
+                18,
+                "POST",
+                "Auth",
+                "Logout",
+                null,
+                "/api/v1/auth/logout",
+                "Auth.Logout",
+                204,
+                31,
+                now.AddMinutes(-30))
+        };
+
+        var existingTraceIds = (await _context.AuditLogs
+                .Where(audit =>
+                    audit.UserId == userId &&
+                    audit.TraceId.StartsWith(tracePrefix))
+                .Select(audit => audit.TraceId)
+                .ToListAsync())
+            .ToHashSet(StringComparer.Ordinal);
+
+        var missingLogs = sampleLogs
+            .Where(log => !existingTraceIds.Contains(log.TraceId))
+            .ToList();
+
+        if (missingLogs.Count == 0)
+            return;
+
+        _context.AuditLogs.AddRange(missingLogs);
+        await _context.SaveChangesAsync();
+    }
+
     private static Category CreateCategory(
         string userId,
         string name,
@@ -779,6 +1449,123 @@ public class DevelopmentDataSeeder
             Color = color,
             Icon = icon,
             IncludeInNetWorth = true,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+    }
+
+    private static Transfer CreateTransfer(
+        string userId,
+        Account fromAccount,
+        Account toAccount,
+        decimal amount,
+        DateTime transferDate,
+        string notes,
+        DateTime now)
+    {
+        return new Transfer
+        {
+            UserId = userId,
+            FromAccountId = fromAccount.Id,
+            ToAccountId = toAccount.Id,
+            Amount = amount,
+            TransferDate = transferDate,
+            Notes = notes,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+    }
+
+    private static FinancialGoal CreateGoal(
+        string userId,
+        string name,
+        decimal targetAmount,
+        decimal startingAmount,
+        DateTime startDate,
+        DateTime? targetDate,
+        FinancialGoalStatus status,
+        Account account,
+        string color,
+        string icon,
+        string notes,
+        DateTime now)
+    {
+        return new FinancialGoal
+        {
+            UserId = userId,
+            Name = name,
+            TargetAmount = targetAmount,
+            StartingAmount = startingAmount,
+            StartDate = startDate,
+            TargetDate = targetDate,
+            Status = status,
+            AccountId = account.Id,
+            Color = color,
+            Icon = icon,
+            Notes = notes,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+    }
+
+    private static GoalContribution CreateGoalContribution(
+        string userId,
+        FinancialGoal goal,
+        Account account,
+        decimal amount,
+        DateTime contributionDate,
+        string notes,
+        GoalContributionType contributionType,
+        Transaction transaction,
+        DateTime now)
+    {
+        return new GoalContribution
+        {
+            UserId = userId,
+            FinancialGoalId = goal.Id,
+            AccountId = account.Id,
+            Amount = amount,
+            ContributionDate = contributionDate,
+            Notes = notes,
+            ContributionType = contributionType,
+            TransactionId = transaction.Id,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+    }
+
+    private static Notification CreateNotification(
+        string userId,
+        NotificationType type,
+        NotificationPriority priority,
+        string title,
+        string message,
+        bool isRead,
+        DateTime occurredAt,
+        string referenceType,
+        int? referenceId,
+        string actionUrl,
+        string uniqueKey,
+        DateTime now)
+    {
+        return new Notification
+        {
+            UserId = userId,
+            Type = type,
+            Priority = priority,
+            Title = title,
+            Message = message,
+            IsRead = isRead,
+            ReadAt = isRead ? occurredAt.AddHours(1) : null,
+            OccurredAt = occurredAt,
+            ReferenceType = referenceType,
+            ReferenceId = referenceId,
+            ActionUrl = actionUrl,
+            UniqueKey = uniqueKey,
             IsActive = true,
             CreatedAt = now,
             UpdatedAt = now

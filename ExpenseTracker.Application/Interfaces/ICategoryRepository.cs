@@ -15,4 +15,4 @@ public interface ICategoryRepository
     Task<bool> UpdateAsync(Category category);
 
     Task<bool> DeleteAsync(int id,string userId);
-}
+}

@@ -26,4 +26,4 @@ public class CreateAccountDto
     public string Icon { get; set; } = "account_balance_wallet";
 
     public bool IncludeInNetWorth { get; set; } = true;
-}
+}

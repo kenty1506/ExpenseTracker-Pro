@@ -4,6 +4,8 @@ using ExpenseTracker.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using ExpenseTracker.Application.Common;
 using ExpenseTracker.Application.DTOs.Transactions;
+using ExpenseTracker.Application.DTOs.Dashboard;
+using ExpenseTracker.Domain.Enums;
 
 namespace ExpenseTracker.Infrastructure.Repositories;
 
@@ -20,6 +22,7 @@ public class TransactionRepository : ITransactionRepository
         string userId)
     {
         return await _context.Transactions
+            .AsNoTracking()
             .Where(x => x.UserId == userId)
             .Include(x => x.Category)
             .Include(x => x.Account)
@@ -31,6 +34,7 @@ public class TransactionRepository : ITransactionRepository
         string userId)
     {
         return await _context.Transactions
+            .AsNoTracking()
             .Include(x => x.Category)
             .Include(x => x.Account)
             .FirstOrDefaultAsync(x =>
@@ -89,6 +93,49 @@ public class TransactionRepository : ITransactionRepository
         return await _context.Transactions
             .AsNoTracking()
             .Where(x => x.UserId == userId)
+            .ToListAsync();
+    }
+
+    public async Task<DashboardSummaryDto> GetDashboardSummaryAsync(
+        string userId)
+    {
+        var summary = await _context.Transactions
+            .AsNoTracking()
+            .Where(transaction => transaction.UserId == userId)
+            .GroupBy(_ => 1)
+            .Select(group => new DashboardSummaryDto
+            {
+                TotalIncome = group
+                    .Where(transaction => transaction.Type == TransactionType.Income)
+                    .Sum(transaction => (decimal?)transaction.Amount) ?? 0m,
+                TotalExpense = group
+                    .Where(transaction => transaction.Type == TransactionType.Expense)
+                    .Sum(transaction => (decimal?)transaction.Amount) ?? 0m,
+                TransactionCount = group.Count()
+            })
+            .SingleOrDefaultAsync() ?? new DashboardSummaryDto();
+
+        summary.Balance = summary.TotalIncome - summary.TotalExpense;
+        return summary;
+    }
+
+    public async Task<IReadOnlyList<CategoryBreakdownDto>>
+        GetCategoryBreakdownAsync(string userId)
+    {
+        return await _context.Transactions
+            .AsNoTracking()
+            .Where(transaction =>
+                transaction.UserId == userId &&
+                transaction.Type == TransactionType.Expense)
+            .GroupBy(transaction => transaction.Category != null
+                ? transaction.Category.Name
+                : "Uncategorized")
+            .Select(group => new CategoryBreakdownDto
+            {
+                Category = group.Key,
+                Amount = group.Sum(transaction => transaction.Amount)
+            })
+            .OrderByDescending(item => item.Amount)
             .ToListAsync();
     }
     public async Task<PagedResult<Transaction>> GetPagedAsync(

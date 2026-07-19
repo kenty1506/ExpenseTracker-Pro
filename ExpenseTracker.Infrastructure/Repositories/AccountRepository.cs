@@ -23,6 +23,7 @@ public class AccountRepository : IAccountRepository
     {
         return await _context.Accounts
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(account => account.IncomingTransfers)
             .Include(account => account.OutgoingTransfers)
             .Where(account =>account.UserId == userId)
@@ -36,6 +37,7 @@ public class AccountRepository : IAccountRepository
     {
         return await _context.Accounts
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(account => account.Transactions)
             .Include(account => account.IncomingTransfers)
             .ThenInclude(transfer => transfer.FromAccount)
@@ -126,6 +128,7 @@ public class AccountRepository : IAccountRepository
     {
         var accounts = _context.Accounts
             .AsNoTracking()
+            .AsSplitQuery()
             .Where(account =>
                 account.UserId == userId)
             .Include(account =>
@@ -288,21 +291,46 @@ public class AccountRepository : IAccountRepository
                 ? query
                     .OrderByDescending(account =>
                         account.OpeningBalance
-                        + account.Transactions
-                            .Where(transaction =>transaction.Type ==TransactionType.Income)
-                            .Sum(transaction =>(decimal?)transaction.Amount) ?? 0- account.Transactions
-                            .Where(transaction =>transaction.Type ==TransactionType.Expense)
-                            .Sum(transaction =>(decimal?)transaction.Amount) ?? 0+ account.IncomingTransfers
-                            .Sum(transfer =>(decimal?)transfer.Amount) ?? 0- account.OutgoingTransfers
-                            .Sum(transfer =>(decimal?)transfer.Amount) ?? 0).ThenByDescending(account =>account.Id)
+                        + (account.Transactions
+                            .Where(transaction =>
+                                transaction.Type ==
+                                    TransactionType.Income)
+                            .Sum(transaction =>
+                                (decimal?)transaction.Amount) ?? 0m)
+                        - (account.Transactions
+                            .Where(transaction =>
+                                transaction.Type ==
+                                    TransactionType.Expense)
+                            .Sum(transaction =>
+                                (decimal?)transaction.Amount) ?? 0m)
+                        + (account.IncomingTransfers
+                            .Sum(transfer =>
+                                (decimal?)transfer.Amount) ?? 0m)
+                        - (account.OutgoingTransfers
+                            .Sum(transfer =>
+                                (decimal?)transfer.Amount) ?? 0m))
+                    .ThenByDescending(account => account.Id)
                 : query
-                    .OrderBy(account => account.OpeningBalance+ account.Transactions
-                            .Where(transaction => transaction.Type ==TransactionType.Income)
-                            .Sum(transaction => (decimal?)transaction.Amount) ?? 0- account.Transactions
-                            .Where(transaction => transaction.Type == TransactionType.Expense)
-                            .Sum(transaction => (decimal?)transaction.Amount) ?? 0+ account.IncomingTransfers
-                            .Sum(transfer => (decimal?)transfer.Amount) ?? 0 - account.OutgoingTransfers
-                            .Sum(transfer =>(decimal?)transfer.Amount) ?? 0)
+                    .OrderBy(account =>
+                        account.OpeningBalance
+                        + (account.Transactions
+                            .Where(transaction =>
+                                transaction.Type ==
+                                    TransactionType.Income)
+                            .Sum(transaction =>
+                                (decimal?)transaction.Amount) ?? 0m)
+                        - (account.Transactions
+                            .Where(transaction =>
+                                transaction.Type ==
+                                    TransactionType.Expense)
+                            .Sum(transaction =>
+                                (decimal?)transaction.Amount) ?? 0m)
+                        + (account.IncomingTransfers
+                            .Sum(transfer =>
+                                (decimal?)transfer.Amount) ?? 0m)
+                        - (account.OutgoingTransfers
+                            .Sum(transfer =>
+                                (decimal?)transfer.Amount) ?? 0m))
                     .ThenBy(account => account.Id), _ => descending? query
                     .OrderByDescending(account => account.Name)
                     .ThenByDescending(account => account.Id) : query

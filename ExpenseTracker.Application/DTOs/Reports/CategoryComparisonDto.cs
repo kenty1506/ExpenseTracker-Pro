@@ -17,4 +17,4 @@ public class CategoryComparisonDto
     public int TransactionCount { get; set; }
 
     public List<CategoryMonthlyAmountDto> Months { get; set; } = [];
-}
+}

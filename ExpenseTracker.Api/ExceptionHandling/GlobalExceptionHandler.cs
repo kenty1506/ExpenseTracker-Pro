@@ -83,6 +83,13 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
     {
         return exception switch
         {
+            ExpenseTracker.Application.Common
+                .ExternalAuthenticationProviderException =>
+                new ExceptionMapping(
+                    StatusCodes.Status503ServiceUnavailable,
+                    "The external authentication service is temporarily " +
+                    "unavailable. Please try again."),
+
             ValidationException validationException =>
                 new ExceptionMapping(
                     StatusCodes.Status400BadRequest,

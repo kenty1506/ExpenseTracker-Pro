@@ -29,4 +29,4 @@ public class CreateNotificationDto
 
     [MaxLength(300)]
     public string? UniqueKey { get; set; }
-}
+}

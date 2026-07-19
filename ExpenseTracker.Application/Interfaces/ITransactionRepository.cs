@@ -2,6 +2,7 @@
 using ExpenseTracker.Application.Common;
 using ExpenseTracker.Application.DTOs.Transactions;
 using ExpenseTracker.Application.DTOs.Transfers;
+using ExpenseTracker.Application.DTOs.Dashboard;
 
 namespace ExpenseTracker.Application.Interfaces;
 
@@ -18,6 +19,8 @@ public interface ITransactionRepository
     Task<bool> DeleteAsync(int id, string userId);
 
     Task<IEnumerable<Transaction>> GetAllForDashboardAsync(string userId);
+    Task<DashboardSummaryDto> GetDashboardSummaryAsync(string userId);
+    Task<IReadOnlyList<CategoryBreakdownDto>> GetCategoryBreakdownAsync(string userId);
     Task<PagedResult<Transaction>> GetPagedAsync(string userId, TransactionQueryDto query);
 
 }

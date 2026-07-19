@@ -9,4 +9,4 @@ public class NotificationSummaryDto
     public int HighPriorityUnreadCount { get; set; }
 
     public int CriticalUnreadCount { get; set; }
-}
+}

@@ -6,4 +6,4 @@ public enum FinancialGoalStatus
     Completed = 2,
     Paused = 3,
     Cancelled = 4
-}
+}

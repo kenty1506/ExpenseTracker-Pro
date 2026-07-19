@@ -21,4 +21,4 @@ public interface IAccountRepository
     Task<bool> HasTransactionsAsync(int id,string userId);
     Task<PagedResult<Account>> GetPagedAsync(string userId,AccountQueryDto query);
 
-}
+}

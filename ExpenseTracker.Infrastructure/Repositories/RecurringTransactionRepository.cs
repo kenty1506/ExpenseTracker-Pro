@@ -172,71 +172,86 @@ public class RecurringTransactionRepository
             DateTime nextRunDate)
     {
         var occurrence = occurrenceDate.Date;
+        var executionStrategy =
+            _context.Database.CreateExecutionStrategy();
 
-        await using var databaseTransaction =
-            await _context.Database
-                .BeginTransactionAsync();
+        return await executionStrategy.ExecuteAsync(
+            async () =>
+            {
+                await using var databaseTransaction =
+                    await _context.Database
+                        .BeginTransactionAsync();
 
-        var recurring =
-            await _context.RecurringTransactions
-                .FirstOrDefaultAsync(x =>
-                    x.Id == recurringTransactionId &&
-                    x.UserId == userId);
+                try
+                {
+                    var recurring =
+                        await _context.RecurringTransactions
+                            .FirstOrDefaultAsync(x =>
+                                x.Id == recurringTransactionId &&
+                                x.UserId == userId);
 
-        if (recurring == null ||
-            !recurring.IsActive ||
-            recurring.NextRunDate.Date != occurrence)
-        {
-            return null;
-        }
+                    if (recurring == null ||
+                        !recurring.IsActive ||
+                        recurring.NextRunDate.Date != occurrence)
+                    {
+                        await databaseTransaction.RollbackAsync();
+                        return null;
+                    }
 
-        var alreadyGenerated =
-            await _context.Transactions.AnyAsync(x =>
-                x.UserId == userId &&
-                x.RecurringTransactionId ==
-                    recurringTransactionId &&
-                x.Date == occurrence);
+                    var alreadyGenerated =
+                        await _context.Transactions.AnyAsync(x =>
+                            x.UserId == userId &&
+                            x.RecurringTransactionId ==
+                                recurringTransactionId &&
+                            x.Date == occurrence);
 
-        if (alreadyGenerated)
-        {
-            recurring.LastRunDate = occurrence;
-            recurring.NextRunDate = nextRunDate;
-            recurring.UpdatedAt = DateTime.UtcNow;
+                    if (alreadyGenerated)
+                    {
+                        recurring.LastRunDate = occurrence;
+                        recurring.NextRunDate = nextRunDate;
+                        recurring.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync();
-            await databaseTransaction.CommitAsync();
+                        await _context.SaveChangesAsync();
+                        await databaseTransaction.CommitAsync();
 
-            return null;
-        }
+                        return null;
+                    }
 
-        var transaction = new Transaction
-        {
-            UserId = userId,
-            Type = recurring.Type,
-            CategoryId = recurring.CategoryId,
-            AccountId = recurring.AccountId,
-            Amount = recurring.Amount,
-            Notes = recurring.Notes,
-            Date = occurrence,
-            RecurringTransactionId = recurring.Id
-        };
+                    var transaction = new Transaction
+                    {
+                        UserId = userId,
+                        Type = recurring.Type,
+                        CategoryId = recurring.CategoryId,
+                        AccountId = recurring.AccountId,
+                        Amount = recurring.Amount,
+                        Notes = recurring.Notes,
+                        Date = occurrence,
+                        RecurringTransactionId = recurring.Id
+                    };
 
-        _context.Transactions.Add(transaction);
+                    _context.Transactions.Add(transaction);
 
-        recurring.LastRunDate = occurrence;
-        recurring.NextRunDate = nextRunDate;
-        recurring.UpdatedAt = DateTime.UtcNow;
+                    recurring.LastRunDate = occurrence;
+                    recurring.NextRunDate = nextRunDate;
+                    recurring.UpdatedAt = DateTime.UtcNow;
 
-        if (recurring.EndDate.HasValue &&
-            nextRunDate.Date >
-                recurring.EndDate.Value.Date)
-        {
-            recurring.IsActive = false;
-        }
+                    if (recurring.EndDate.HasValue &&
+                        nextRunDate.Date >
+                            recurring.EndDate.Value.Date)
+                    {
+                        recurring.IsActive = false;
+                    }
 
-        await _context.SaveChangesAsync();
-        await databaseTransaction.CommitAsync();
+                    await _context.SaveChangesAsync();
+                    await databaseTransaction.CommitAsync();
 
-        return transaction;
+                    return transaction;
+                }
+                catch
+                {
+                    await databaseTransaction.RollbackAsync();
+                    throw;
+                }
+            });
     }
 }

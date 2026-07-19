@@ -16,4 +16,4 @@ public class NotificationQueryDto : PagedQuery
     public DateTime? ToDate { get; set; }
 
     public string? Search { get; set; }
-}
+}

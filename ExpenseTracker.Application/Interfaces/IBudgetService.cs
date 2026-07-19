@@ -13,4 +13,8 @@ public interface IBudgetService
     Task<IEnumerable<BudgetAlertDto>> GetAlertsAsync(int year, int month);
     Task<IEnumerable<BudgetAlertDto>> GetAlertsForUserAsync(string userId,int year,int month);
     Task<IEnumerable<BudgetVsActualDto>> GetBudgetVsActualAsync(int year,int month);
+    Task<BudgetForecastDto> GetForecastAsync(
+        int months,
+        int historyMonths,
+        decimal safetyBufferPercent);
 }

@@ -14,26 +14,44 @@ public static class InfrastructureServiceRegistration
         this IServiceCollection services,
         string connectionString)
     {
-        services.AddDbContext<ExpenseTrackerDbContext>(options =>
+        services.AddDbContextPool<ExpenseTrackerDbContext>(options =>
             options.UseSqlServer(
                 connectionString,
                 sqlOptions =>
                 {
-            sqlOptions.EnableRetryOnFailure();
-        }));
+                    sqlOptions.CommandTimeout(30);
+                    sqlOptions.EnableRetryOnFailure(
+                        maxRetryCount: 5,
+                        maxRetryDelay: TimeSpan.FromSeconds(10),
+                        errorNumbersToAdd: null);
+                }),
+            poolSize: 256);
 
         services.AddIdentityCore<ApplicationUser>(options =>
         {
-            options.User.RequireUniqueEmail = true;
+            // Mobile-only accounts do not have an email address. A filtered
+            // unique database index still protects every non-null email.
+            options.User.RequireUniqueEmail = false;
 
-            options.Password.RequiredLength = 6;
+            options.Password.RequiredLength = 10;
             options.Password.RequireDigit = true;
             options.Password.RequireUppercase = true;
             options.Password.RequireLowercase = true;
-            options.Password.RequireNonAlphanumeric = false;
+            options.Password.RequireNonAlphanumeric = true;
+            options.Password.RequiredUniqueChars = 4;
+
+            options.Lockout.AllowedForNewUsers = true;
+            options.Lockout.MaxFailedAccessAttempts = 5;
+            options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
         })
         .AddRoles<IdentityRole>()
-        .AddEntityFrameworkStores<ExpenseTrackerDbContext>();
+        .AddEntityFrameworkStores<ExpenseTrackerDbContext>()
+        .AddDefaultTokenProviders();
+
+        services.Configure<DataProtectionTokenProviderOptions>(options =>
+        {
+            options.TokenLifespan = TimeSpan.FromMinutes(30);
+        });
 
         services.AddScoped<ITransactionRepository, TransactionRepository>();
         services.AddScoped<ICategoryRepository, CategoryRepository>();
@@ -47,6 +65,7 @@ public static class InfrastructureServiceRegistration
         services.AddScoped<IFinancialGoalRepository,FinancialGoalRepository>();
         services.AddScoped<INotificationRepository,NotificationRepository>();
         services.AddScoped<ISystemUserRepository,SystemUserRepository>();
+        services.AddScoped<IAuditTrailRepository, AuditTrailRepository>();
         services.AddScoped<DevelopmentDataSeeder>();
         
 

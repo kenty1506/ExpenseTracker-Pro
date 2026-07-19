@@ -345,8 +345,26 @@ public class ReportRepository : IReportRepository
     }
     public async Task<IEnumerable<CalendarSpendingDto>> GetCalendarAsync(string userId,int year,int month)
     {
-        var monthStart = new DateTime(year,month,1);
+        var calendar = await GetExpenseCalendarAsync(userId, year, month);
+        return calendar.Days;
+    }
+
+    public async Task<ExpenseCalendarDto> GetExpenseCalendarAsync(
+        string userId,
+        int year,
+        int month)
+    {
+        var monthStart = new DateTime(
+            year,
+            month,
+            1,
+            0,
+            0,
+            0,
+            DateTimeKind.Utc);
+
         var nextMonth = monthStart.AddMonths(1);
+
         var expenses = await _context.Transactions
             .AsNoTracking()
             .Where(transaction =>
@@ -356,8 +374,25 @@ public class ReportRepository : IReportRepository
                 transaction.Date < nextMonth)
             .Select(transaction => new
             {
+                transaction.Id,
                 transaction.Date,
-                transaction.Amount
+                transaction.Amount,
+                transaction.Notes,
+                transaction.CategoryId,
+                Category = transaction.Category != null
+                    ? transaction.Category.Name
+                    : "Uncategorized",
+                Color = transaction.Category != null
+                    ? transaction.Category.Color
+                    : "#808080",
+                Icon = transaction.Category != null
+                    ? transaction.Category.Icon
+                    : "category",
+                transaction.AccountId,
+                Account = transaction.Account != null
+                    ? transaction.Account.Name
+                    : null,
+                IsRecurring = transaction.RecurringTransactionId.HasValue
             })
             .ToListAsync();
 
@@ -365,27 +400,100 @@ public class ReportRepository : IReportRepository
             .GroupBy(transaction => transaction.Date.Day)
             .ToDictionary(
                 group => group.Key,
-                group => new
-                {
-                    Expense = group.Sum(transaction => transaction.Amount),
-                    Count = group.Count()
-                });
+                group => group
+                    .OrderByDescending(transaction => transaction.Amount)
+                    .ThenByDescending(transaction => transaction.Date)
+                    .ToList());
 
         var days = DateTime.DaysInMonth(year,month);
-        return Enumerable.Range(1, days)
+        var today = DateTime.UtcNow.Date;
+
+        var calendarDays = Enumerable.Range(1, days)
             .Select(day =>
             {
-                grouped.TryGetValue(day, out var totals);
+                grouped.TryGetValue(day, out var dayExpenses);
+                dayExpenses ??= [];
+
+                var date = new DateTime(
+                    year,
+                    month,
+                    day,
+                    0,
+                    0,
+                    0,
+                    DateTimeKind.Utc);
+
+                var topCategory = dayExpenses
+                    .GroupBy(transaction => transaction.Category)
+                    .Select(group => new
+                    {
+                        Category = group.Key,
+                        Amount = group.Sum(transaction => transaction.Amount)
+                    })
+                    .OrderByDescending(group => group.Amount)
+                    .ThenBy(group => group.Category)
+                    .Select(group => group.Category)
+                    .FirstOrDefault();
 
                 return new CalendarSpendingDto
                 {
-                    Date = new DateTime(year, month, day),
+                    Date = date,
                     Day = day,
-                    TotalExpense = totals?.Expense ?? 0,
-                    TransactionCount = totals?.Count ?? 0
+                    DayOfWeek = date.DayOfWeek.ToString(),
+                    TotalExpense = dayExpenses.Sum(transaction => transaction.Amount),
+                    TransactionCount = dayExpenses.Count,
+                    LargestExpense = dayExpenses.Count == 0
+                        ? 0
+                        : dayExpenses.Max(transaction => transaction.Amount),
+                    TopCategory = topCategory,
+                    IsToday = date == today,
+                    Transactions = dayExpenses
+                        .Select(transaction => new CalendarExpenseTransactionDto
+                        {
+                            Id = transaction.Id,
+                            Date = transaction.Date,
+                            Amount = transaction.Amount,
+                            Notes = transaction.Notes,
+                            CategoryId = transaction.CategoryId,
+                            Category = transaction.Category,
+                            Color = transaction.Color,
+                            Icon = transaction.Icon,
+                            AccountId = transaction.AccountId,
+                            Account = transaction.Account,
+                            IsRecurring = transaction.IsRecurring
+                        })
+                        .ToList()
                 };
             })
             .ToList();
+
+        var totalExpense = calendarDays.Sum(day => day.TotalExpense);
+        var spendingDays = calendarDays.Count(day => day.HasSpending);
+        var previousMonth = monthStart.AddMonths(-1);
+
+        return new ExpenseCalendarDto
+        {
+            Year = year,
+            Month = month,
+            MonthName = CultureInfo.InvariantCulture.DateTimeFormat.GetMonthName(month),
+            PeriodStart = monthStart,
+            PeriodEndExclusive = nextMonth,
+            TotalExpense = totalExpense,
+            TransactionCount = expenses.Count,
+            SpendingDays = spendingDays,
+            AveragePerSpendingDay = spendingDays == 0
+                ? 0
+                : Math.Round(totalExpense / spendingDays, 2),
+            AveragePerCalendarDay = Math.Round(totalExpense / days, 2),
+            LargestDailyExpense = calendarDays.Count == 0
+                ? 0
+                : calendarDays.Max(day => day.TotalExpense),
+            PreviousYear = previousMonth.Year,
+            PreviousMonth = previousMonth.Month,
+            NextYear = nextMonth.Year,
+            NextMonth = nextMonth.Month,
+            Days = calendarDays
+        };
     }
     public async Task<IEnumerable<LargestTransactionDto>>GetLargestTransactionsAsync(string userId,int limit,TransactionType? type)
     {

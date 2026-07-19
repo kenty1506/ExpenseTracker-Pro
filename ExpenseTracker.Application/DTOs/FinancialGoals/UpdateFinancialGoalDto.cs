@@ -28,4 +28,4 @@ public class UpdateFinancialGoalDto
 
     [MaxLength(500)]
     public string Notes { get; set; } = string.Empty;
-}
+}

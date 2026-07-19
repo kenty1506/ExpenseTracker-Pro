@@ -204,6 +204,30 @@ public class ReportsController : ControllerBase
     }
 
     /// <summary>
+    /// Retrieves a detailed monthly expense calendar for the authenticated user.
+    /// </summary>
+    /// <remarks>
+    /// Every calendar day is returned, including days without expenses. Expense entries
+    /// include their transaction ID so a client can navigate directly to the transaction.
+    /// </remarks>
+    /// <param name="year">The calendar year.</param>
+    /// <param name="month">The calendar month from 1 to 12.</param>
+    /// <response code="200">The detailed expense calendar was retrieved.</response>
+    /// <response code="400">The year or month is invalid.</response>
+    /// <response code="401">Authentication is required.</response>
+    [HttpGet("expense-calendar")]
+    [ProducesResponseType(typeof(ExpenseCalendarDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetExpenseCalendar(
+        [FromQuery] int year,
+        [FromQuery] int month)
+    {
+        var calendar = await _reportService.GetExpenseCalendarAsync(year, month);
+        return Ok(calendar);
+    }
+
+    /// <summary>
     /// Retrieves the largest transactions.
     /// </summary>
     /// <param name="limit">

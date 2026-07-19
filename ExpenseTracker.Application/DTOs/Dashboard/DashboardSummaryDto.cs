@@ -9,4 +9,4 @@ public class DashboardSummaryDto
     public decimal Balance { get; set; }
 
     public int TransactionCount { get; set; }
-}
+}

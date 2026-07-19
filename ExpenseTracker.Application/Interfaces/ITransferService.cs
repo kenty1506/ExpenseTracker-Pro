@@ -20,4 +20,4 @@ public interface ITransferService
 
     Task<PagedResult<TransferDto>> GetPagedAsync(TransferQueryDto query);
 
-}
+}

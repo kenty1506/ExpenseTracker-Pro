@@ -16,4 +16,4 @@ public interface IBudgetRepository
 
     Task<IEnumerable<Budget>> GetByMonthAsync(string userId,int year,int month);
 
-}
+}

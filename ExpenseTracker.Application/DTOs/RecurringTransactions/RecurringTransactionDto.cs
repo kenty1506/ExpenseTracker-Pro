@@ -35,4 +35,4 @@ public class RecurringTransactionDto
     public DateTime? LastRunDate { get; set; }
 
     public bool IsActive { get; set; }
-}
+}

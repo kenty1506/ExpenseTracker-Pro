@@ -21,4 +21,4 @@ public class FinancialGoalsSummaryDto
     public decimal TotalRemainingAmount { get; set; }
 
     public decimal OverallPercentageCompleted { get; set; }
-}
+}

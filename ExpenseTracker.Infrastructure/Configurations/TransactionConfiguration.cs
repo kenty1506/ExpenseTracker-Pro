@@ -79,4 +79,4 @@ public class TransactionConfiguration : IEntityTypeConfiguration<Transaction>
             transaction.Date
         });
     }
-}
+}

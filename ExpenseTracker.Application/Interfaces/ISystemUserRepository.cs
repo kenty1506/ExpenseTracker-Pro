@@ -2,5 +2,8 @@
 
 public interface ISystemUserRepository
 {
-    Task<IReadOnlyList<string>> GetAllActiveUserIdsAsync();
+    Task<IReadOnlyList<string>> GetActiveUserIdsPageAsync(
+        string? afterUserId,
+        int pageSize,
+        CancellationToken cancellationToken = default);
 }

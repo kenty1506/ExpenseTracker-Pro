@@ -76,6 +76,7 @@ public class NotificationEngineService
                 userId,
                 today.Year,
                 today.Month);
+        var activeUniqueKeys = new List<string>();
 
         foreach (var alert in alerts)
         {
@@ -84,6 +85,9 @@ public class NotificationEngineService
 
             var isExceeded =
                 alert.AlertLevel == "Over Budget";
+            var uniqueKey =
+                $"budget-alert:{alert.BudgetId}:{today:yyyy-MM}";
+            activeUniqueKeys.Add(uniqueKey);
 
             var dto = new CreateNotificationDto
             {
@@ -113,9 +117,7 @@ public class NotificationEngineService
                 ActionUrl =
                     $"/budgets/{alert.BudgetId}",
 
-                UniqueKey =
-                    $"budget-alert:{alert.BudgetId}:" +
-                    $"{today:yyyy-MM}:{alert.AlertLevel}"
+                UniqueKey = uniqueKey
             };
 
             await TryCreateAsync(
@@ -123,6 +125,11 @@ public class NotificationEngineService
                 dto,
                 result);
         }
+
+        await _notificationService.DeactivateMissingForUserAsync(
+            userId,
+            "budget-alert:",
+            activeUniqueKeys);
     }
 
     private async Task GenerateRecurringNotificationsAsync(
@@ -134,6 +141,7 @@ public class NotificationEngineService
                 .GetUpcomingForUserAsync(
                     userId,
                     7);
+        var activeUniqueKeys = new List<string>();
 
         foreach (var item in recurringItems)
         {
@@ -165,6 +173,9 @@ public class NotificationEngineService
                 1 => NotificationPriority.Normal,
                 _ => NotificationPriority.Low
             };
+            var uniqueKey =
+                $"recurring-due:{item.Id}:{item.NextRunDate:yyyy-MM-dd}";
+            activeUniqueKeys.Add(uniqueKey);
 
             var dto = new CreateNotificationDto
             {
@@ -180,9 +191,7 @@ public class NotificationEngineService
                 ActionUrl =
                     $"/recurring-transactions/{item.Id}",
 
-                UniqueKey =
-                    $"recurring-due:{item.Id}:" +
-                    $"{item.NextRunDate:yyyy-MM-dd}"
+                UniqueKey = uniqueKey
             };
 
             await TryCreateAsync(
@@ -190,6 +199,11 @@ public class NotificationEngineService
                 dto,
                 result);
         }
+
+        await _notificationService.DeactivateMissingForUserAsync(
+            userId,
+            "recurring-due:",
+            activeUniqueKeys);
     }
 
     private async Task GenerateGoalNotificationsAsync(
@@ -199,6 +213,7 @@ public class NotificationEngineService
         var goals =
             await _financialGoalService
                 .GetAllForUserAsync(userId);
+        var activeUniqueKeys = new List<string>();
 
         foreach (var goal in goals)
         {
@@ -212,6 +227,8 @@ public class NotificationEngineService
 
             if (goal.IsCompleted)
             {
+                var uniqueKey = $"goal-alert:{goal.Id}:completed";
+                activeUniqueKeys.Add(uniqueKey);
                 var completedNotification =
                     new CreateNotificationDto
                     {
@@ -236,8 +253,7 @@ public class NotificationEngineService
                         ActionUrl =
                             $"/financial-goals/{goal.Id}",
 
-                        UniqueKey =
-                            $"goal-completed:{goal.Id}"
+                        UniqueKey = uniqueKey
                     };
 
                 await TryCreateAsync(
@@ -253,6 +269,9 @@ public class NotificationEngineService
                 var targetDateKey =
                     goal.TargetDate?.ToString("yyyy-MM-dd")
                     ?? "no-date";
+                var uniqueKey =
+                    $"goal-alert:{goal.Id}:overdue:{targetDateKey}";
+                activeUniqueKeys.Add(uniqueKey);
 
                 var overdueNotification =
                     new CreateNotificationDto
@@ -278,9 +297,7 @@ public class NotificationEngineService
                         ActionUrl =
                             $"/financial-goals/{goal.Id}",
 
-                        UniqueKey =
-                            $"goal-overdue:{goal.Id}:" +
-                            targetDateKey
+                        UniqueKey = uniqueKey
                     };
 
                 await TryCreateAsync(
@@ -296,6 +313,9 @@ public class NotificationEngineService
                 var progressLevel =
                     (int)Math.Floor(
                         goal.PercentageCompleted / 5) * 5;
+                var uniqueKey =
+                    $"goal-alert:{goal.Id}:progress:{progressLevel}";
+                activeUniqueKeys.Add(uniqueKey);
 
                 var nearTargetNotification =
                     new CreateNotificationDto
@@ -322,16 +342,32 @@ public class NotificationEngineService
                         ActionUrl =
                             $"/financial-goals/{goal.Id}",
 
-                        UniqueKey =
-                            $"goal-progress:{goal.Id}:" +
-                            $"{progressLevel}"
+                        UniqueKey = uniqueKey
                     };
 
                 await TryCreateAsync(
                     userId,
                     nearTargetNotification,
-                    result);
+                result);
             }
+        }
+
+        await _notificationService.DeactivateMissingForUserAsync(
+            userId,
+            "goal-alert:",
+            activeUniqueKeys);
+
+        foreach (var legacyPrefix in new[]
+                 {
+                     "goal-completed:",
+                     "goal-overdue:",
+                     "goal-progress:"
+                 })
+        {
+            await _notificationService.DeactivateMissingForUserAsync(
+                userId,
+                legacyPrefix,
+                Array.Empty<string>());
         }
     }
 

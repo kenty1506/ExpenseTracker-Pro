@@ -94,4 +94,4 @@ public class GoalContributionConfiguration :
             contribution.TransactionId)
             .HasFilter("[TransactionId] IS NOT NULL");
     }
-}
+}

@@ -9,4 +9,4 @@ public interface IDashboardService
     Task<IEnumerable<CategoryBreakdownDto>> GetCategoryBreakdownAsync();
 
     Task<DashboardV2Dto> GetDashboardV2Async();
-}
+}

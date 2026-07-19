@@ -18,4 +18,4 @@ public interface IRecurringTransactionRepository
 
     Task<Transaction?> GenerateOccurrenceAsync(int recurringTransactionId,string userId,DateTime occurrenceDate,DateTime nextRunDate);
     Task<IEnumerable<RecurringTransaction>> GetUpcomingAsync(string userId,DateTime fromDate,DateTime throughDate);
-}
+}

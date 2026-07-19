@@ -15,4 +15,4 @@ public class Budget : BaseEntity
     public int Month { get; set; }
 
     public decimal Amount { get; set; }
-}
+}

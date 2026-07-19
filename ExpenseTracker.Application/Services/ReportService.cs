@@ -78,15 +78,33 @@ public class ReportService : IReportService
 
     public async Task<IEnumerable<CalendarSpendingDto>>GetCalendarAsync(int year,int month)
     {
-        if (year < 2000 ||year > DateTime.UtcNow.Year + 1)
+        ValidateCalendarPeriod(year, month);
+        return await _reportRepository.GetCalendarAsync(_currentUserService.UserId, year, month);
+    }
+
+    public async Task<ExpenseCalendarDto> GetExpenseCalendarAsync(
+        int year,
+        int month)
+    {
+        ValidateCalendarPeriod(year, month);
+
+        return await _reportRepository.GetExpenseCalendarAsync(
+            _currentUserService.UserId,
+            year,
+            month);
+    }
+
+    private static void ValidateCalendarPeriod(int year, int month)
+    {
+        if (year < 2000 || year > DateTime.UtcNow.Year + 1)
         {
-            throw new ArgumentException("Invalid year.");
+            throw new ArgumentException("Please provide a valid calendar year.");
         }
+
         if (month < 1 || month > 12)
         {
-            throw new ArgumentException("Invalid month.");
+            throw new ArgumentException("The month must be between 1 and 12.");
         }
-        return await _reportRepository.GetCalendarAsync(_currentUserService.UserId, year, month);
     }
 
     public async Task<IEnumerable<LargestTransactionDto>>GetLargestTransactionsAsync(int limit,TransactionType? type)

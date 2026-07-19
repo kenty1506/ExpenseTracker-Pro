@@ -10,17 +10,20 @@ public class BudgetService : IBudgetService
     private readonly ICategoryRepository _categoryRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly ITransactionRepository _transactionRepository;
+    private readonly IRecurringTransactionRepository _recurringTransactionRepository;
 
     public BudgetService(
         IBudgetRepository budgetRepository,
         ICategoryRepository categoryRepository,
         ICurrentUserService currentUserService,
-        ITransactionRepository transactionRepository)
+        ITransactionRepository transactionRepository,
+        IRecurringTransactionRepository recurringTransactionRepository)
     {
         _budgetRepository = budgetRepository;
         _categoryRepository = categoryRepository;
         _currentUserService = currentUserService;
         _transactionRepository = transactionRepository;
+        _recurringTransactionRepository = recurringTransactionRepository;
     }
 
     public async Task<IEnumerable<BudgetDto>> GetAllAsync()
@@ -351,5 +354,46 @@ public class BudgetService : IBudgetService
             .OrderByDescending(result =>
                 result.PercentageUsed)
             .ToList();
+    }
+
+    public async Task<BudgetForecastDto> GetForecastAsync(
+        int months,
+        int historyMonths,
+        decimal safetyBufferPercent)
+    {
+        if (months < 3 || months > 12)
+        {
+            throw new ArgumentException(
+                "Forecast months must be between 3 and 12.");
+        }
+
+        if (historyMonths < 1 || historyMonths > 12)
+        {
+            throw new ArgumentException(
+                "History months must be between 1 and 12.");
+        }
+
+        if (safetyBufferPercent < 0 || safetyBufferPercent > 50)
+        {
+            throw new ArgumentException(
+                "The safety buffer must be between 0 and 50 percent.");
+        }
+
+        var userId = _currentUserService.UserId;
+
+        // These repositories share a scoped DbContext, so load them sequentially.
+        var budgets = await _budgetRepository.GetAllAsync(userId);
+        var transactions = await _transactionRepository.GetAllAsync(userId);
+        var recurringTransactions =
+            await _recurringTransactionRepository.GetAllAsync(userId);
+
+        return BudgetForecastCalculator.Calculate(
+            budgets,
+            transactions,
+            recurringTransactions,
+            DateTime.UtcNow,
+            months,
+            historyMonths,
+            safetyBufferPercent);
     }
 }

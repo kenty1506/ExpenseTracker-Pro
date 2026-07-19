@@ -78,4 +78,4 @@ public class ExpenseTrackerBackgroundService
         _logger.LogInformation(
             "Expense Tracker Background Service stopped.");
     }
-}
+}

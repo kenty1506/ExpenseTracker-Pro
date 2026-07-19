@@ -237,37 +237,9 @@ public class TransferService : ITransferService
         Account account,
         IEnumerable<Transfer> transfers)
     {
-        var totalIncome = account.Transactions
-            .Where(transaction =>
-                transaction.Type ==
-                TransactionType.Income)
-            .Sum(transaction =>
-                transaction.Amount);
-
-        var totalExpense = account.Transactions
-            .Where(transaction =>
-                transaction.Type ==
-                TransactionType.Expense)
-            .Sum(transaction =>
-                transaction.Amount);
-
-        var incomingTransfers = transfers
-            .Where(transfer =>
-                transfer.ToAccountId == account.Id)
-            .Sum(transfer =>
-                transfer.Amount);
-
-        var outgoingTransfers = transfers
-            .Where(transfer =>
-                transfer.FromAccountId == account.Id)
-            .Sum(transfer =>
-                transfer.Amount);
-
-        return account.OpeningBalance
-            + totalIncome
-            - totalExpense
-            + incomingTransfers
-            - outgoingTransfers;
+        return AccountBalanceCalculator
+            .Calculate(account, transfers)
+            .CurrentBalance;
     }
 
     private static TransferDto MapToDto(

@@ -87,4 +87,4 @@ public class BudgetRepository : IBudgetRepository
             .OrderBy(budget => budget.Category!.Name)
             .ToListAsync();
     }
-}
+}

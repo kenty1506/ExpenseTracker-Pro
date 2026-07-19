@@ -26,21 +26,41 @@ public class SystemBackgroundProcessor
     public async Task ProcessAsync(
         CancellationToken cancellationToken = default)
     {
-        var userIds =
-            await _systemUserRepository
-                .GetAllActiveUserIdsAsync();
+        const int batchSize = 250;
+        string? afterUserId = null;
 
-        foreach (var userId in userIds)
+        while (!cancellationToken.IsCancellationRequested)
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            var userIds = await _systemUserRepository
+                .GetActiveUserIdsPageAsync(
+                    afterUserId,
+                    batchSize,
+                    cancellationToken);
 
-            await _recurringTransactionService
-                .GenerateDueForUserAsync(
-                    userId,
-                    DateTime.UtcNow);
+            if (userIds.Count == 0)
+            {
+                break;
+            }
 
-            await _notificationEngineService
-                .GenerateForUserAsync(userId);
+            foreach (var userId in userIds)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                await _recurringTransactionService
+                    .GenerateDueForUserAsync(
+                        userId,
+                        DateTime.UtcNow);
+
+                await _notificationEngineService
+                    .GenerateForUserAsync(userId);
+            }
+
+            afterUserId = userIds[^1];
+
+            if (userIds.Count < batchSize)
+            {
+                break;
+            }
         }
     }
 }

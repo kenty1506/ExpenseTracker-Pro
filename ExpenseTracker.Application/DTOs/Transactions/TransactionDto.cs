@@ -18,4 +18,4 @@ public class TransactionDto
     public int? AccountId { get; set; }
 
     public string Account { get; set; } = string.Empty;
-}
+}

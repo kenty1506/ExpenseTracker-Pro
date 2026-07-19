@@ -16,4 +16,4 @@ public interface ITransactionService
     Task<TransactionDto?> UpdateAsync(int id, UpdateTransactionDto dto);
     Task<PagedResult<TransactionDto>> GetPagedAsync(TransactionQueryDto query);
 
-}
+}

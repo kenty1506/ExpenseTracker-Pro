@@ -2,5 +2,13 @@
 
 public interface IJwtService
 {
-    string GenerateToken(string userId, string email);
+    string GenerateAccessToken(
+        string userId,
+        string? email,
+        string? phoneNumber,
+        DateTime expiresAtUtc);
+
+    string GenerateRefreshToken();
+
+    string HashRefreshToken(string refreshToken);
 }

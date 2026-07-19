@@ -12,6 +12,14 @@ public class AccountDto
 
     public decimal OpeningBalance { get; set; }
 
+    public decimal TotalIncome { get; set; }
+
+    public decimal TotalExpense { get; set; }
+
+    public decimal IncomingTransfers { get; set; }
+
+    public decimal OutgoingTransfers { get; set; }
+
     public decimal CurrentBalance { get; set; }
 
     public string Currency { get; set; } = string.Empty;
