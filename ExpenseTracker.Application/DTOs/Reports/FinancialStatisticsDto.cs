@@ -29,4 +29,4 @@ public class FinancialStatisticsDto
     public string TopExpenseCategory { get; set; } = string.Empty;
 
     public decimal TopExpenseCategoryAmount { get; set; }
-}
+}

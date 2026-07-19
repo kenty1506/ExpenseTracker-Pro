@@ -13,4 +13,4 @@ public class GeneratedRecurringTransactionDto
     public DateTime OccurrenceDate { get; set; }
 
     public DateTime NextRunDate { get; set; }
-}
+}

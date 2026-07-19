@@ -11,4 +11,4 @@ public class AccountSummaryDto
     public int ActiveAccountCount { get; set; }
 
     public List<AccountDto> Accounts { get; set; } = [];
-}
+}

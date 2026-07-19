@@ -52,5 +52,25 @@ public class TransferConfiguration :
             x.UserId,
             x.ToAccountId
         });
+
+        builder.HasIndex(transfer => new
+        {
+            transfer.UserId,
+            transfer.TransferDate
+        });
+
+        builder.HasIndex(transfer => new
+        {
+            transfer.UserId,
+            transfer.FromAccountId,
+            transfer.TransferDate
+        });
+
+        builder.HasIndex(transfer => new
+        {
+            transfer.UserId,
+            transfer.ToAccountId,
+            transfer.TransferDate
+        });
     }
-}
+}

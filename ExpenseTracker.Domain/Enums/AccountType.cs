@@ -9,4 +9,4 @@ public enum AccountType
     Savings = 5,
     Investment = 6,
     Other = 7
-}
+}

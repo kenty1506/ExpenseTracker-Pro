@@ -47,5 +47,30 @@ public class AccountConfiguration :
             x.UserId,
             x.IsActive
         });
+
+        builder.HasIndex(account => new
+        {
+            account.UserId,
+            account.IsActive
+        });
+
+        builder.HasIndex(account => new
+        {
+            account.UserId,
+            account.Type
+        });
+
+        builder.HasIndex(account => new
+        {
+            account.UserId,
+            account.Name
+        });
+
+        builder.HasIndex(account => new
+        {
+            account.UserId,
+            account.Name
+        })
+            .IsUnique();
     }
-}
+}

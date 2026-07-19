@@ -25,4 +25,4 @@ public class NotificationDto
     public int? ReferenceId { get; set; }
 
     public string? ActionUrl { get; set; }
-}
+}

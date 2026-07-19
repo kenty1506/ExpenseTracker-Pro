@@ -22,4 +22,4 @@ public interface INotificationRepository
 
     Task<int> DeleteReadAsync(string userId);
     Task<PagedResult<Notification>> GetPagedAsync(string userId, NotificationQueryDto query);
-}
+}

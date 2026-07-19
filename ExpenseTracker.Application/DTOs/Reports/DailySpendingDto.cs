@@ -9,4 +9,4 @@ public class DailySpendingDto
     public decimal Expense { get; set; }
 
     public int TransactionCount { get; set; }
-}
+}

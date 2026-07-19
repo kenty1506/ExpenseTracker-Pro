@@ -15,4 +15,4 @@ public class UpdateTransferDto
 
     [MaxLength(500)]
     public string Notes { get; set; } = string.Empty;
-}
+}

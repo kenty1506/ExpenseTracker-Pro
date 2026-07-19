@@ -17,4 +17,4 @@ public class CashFlowReportDto
     public decimal ClosingBalance { get; set; }
 
     public int TransactionCount { get; set; }
-}
+}

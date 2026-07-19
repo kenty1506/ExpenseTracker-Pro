@@ -3,4 +3,4 @@
 public interface ISystemUserRepository
 {
     Task<IReadOnlyList<string>> GetAllActiveUserIdsAsync();
-}
+}

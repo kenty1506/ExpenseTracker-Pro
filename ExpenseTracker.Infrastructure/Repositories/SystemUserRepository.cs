@@ -22,4 +22,4 @@ public class SystemUserRepository : ISystemUserRepository
             .Select(user => user.Id)
             .ToListAsync();
     }
-}
+}

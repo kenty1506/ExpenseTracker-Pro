@@ -12,4 +12,4 @@ public enum NotificationType
     AccountLowBalance = 8,
     MonthlySummary = 9,
     General = 10
-}
+}

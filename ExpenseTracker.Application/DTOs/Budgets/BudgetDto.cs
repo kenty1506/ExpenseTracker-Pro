@@ -17,4 +17,4 @@ public class BudgetDto
     public int Month { get; set; }
 
     public decimal Amount { get; set; }
-}
+}

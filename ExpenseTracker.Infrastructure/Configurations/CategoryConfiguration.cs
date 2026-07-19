@@ -33,4 +33,4 @@ public class CategoryConfiguration :
         })
         .IsUnique();
     }
-}
+}

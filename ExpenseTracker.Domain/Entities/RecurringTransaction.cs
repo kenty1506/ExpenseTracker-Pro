@@ -31,4 +31,4 @@ public class RecurringTransaction : BaseEntity
     public DateTime? LastRunDate { get; set; }
 
     public List<Transaction> GeneratedTransactions { get; set; } = new();
-}
+}

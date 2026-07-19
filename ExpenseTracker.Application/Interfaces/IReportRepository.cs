@@ -12,6 +12,7 @@ public interface IReportRepository
     Task<IEnumerable<CashFlowReportDto>> GetCashFlowAsync(string userId, int year);
     Task<IEnumerable<DailySpendingDto>> GetDailySpendingAsync(string userId,int year,int month);
     Task<IEnumerable<CalendarSpendingDto>> GetCalendarAsync(string userId, int year, int month);
+    Task<ExpenseCalendarDto> GetExpenseCalendarAsync(string userId, int year, int month);
     Task<IEnumerable<LargestTransactionDto>>GetLargestTransactionsAsync(string userId,int limit,TransactionType? type);
     Task<IEnumerable<CategoryComparisonDto>>GetCategoryComparisonAsync(string userId, int year);
     Task<FinancialStatisticsDto> GetStatisticsAsync(string userId,int year);

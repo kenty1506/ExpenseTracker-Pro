@@ -20,4 +20,4 @@ public class LargestTransactionQueryDto : PagedQuery
     public decimal? MaxAmount { get; set; }
 
     public string? Search { get; set; }
-}
+}

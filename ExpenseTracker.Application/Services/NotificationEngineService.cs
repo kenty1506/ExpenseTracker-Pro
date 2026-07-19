@@ -355,4 +355,4 @@ public class NotificationEngineService
         result.GeneratedCount++;
         result.GeneratedNotifications.Add(created);
     }
-}
+}

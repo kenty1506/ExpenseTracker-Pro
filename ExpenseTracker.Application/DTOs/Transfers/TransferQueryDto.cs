@@ -17,4 +17,4 @@ public class TransferQueryDto : PagedQuery
     public decimal? MaxAmount { get; set; }
 
     public string? Search { get; set; }
-}
+}

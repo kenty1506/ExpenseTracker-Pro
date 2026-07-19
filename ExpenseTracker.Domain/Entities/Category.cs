@@ -18,4 +18,4 @@ public class Category : BaseEntity
 
     public List<RecurringTransaction> RecurringTransactions { get; set; } = new();
 
-}
+}

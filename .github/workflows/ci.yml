@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  repository-hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Reject generated and local database files
+        shell: bash
+        run: |
+          tracked_files="$(git ls-files | grep -E '(^|/)(bin|obj|\.vs)/|\.db(-shm|-wal)?$|\.tmp$' || true)"
+          if [ -n "$tracked_files" ]; then
+            echo "Generated or local runtime files must not be committed:"
+            echo "$tracked_files"
+            exit 1
+          fi
+
+      - name: Verify tracked configuration contains no JWT secret
+        shell: python
+        run: |
+          import json
+          from pathlib import Path
+
+          config = json.loads(
+              Path("ExpenseTracker.Api/appsettings.json").read_text()
+          )
+          if config.get("Jwt", {}).get("Key"):
+              raise SystemExit("Jwt:Key must remain empty in tracked configuration")
+
+  build-and-test:
+    runs-on: ubuntu-latest
+    needs: repository-hygiene
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore ExpenseTracker.Pro.sln
+
+      - name: Build
+        run: dotnet build ExpenseTracker.Pro.sln --configuration Release --no-restore
+
+      - name: Test
+        run: >-
+          dotnet test ExpenseTracker.Pro.sln
+          --configuration Release
+          --no-build
+          --collect:"XPlat Code Coverage"
+          --results-directory TestResults

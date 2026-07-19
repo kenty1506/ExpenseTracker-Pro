@@ -13,4 +13,4 @@ public class GoalSummaryDto
     public bool IsCompleted { get; set; }
 
     public bool IsOverdue { get; set; }
-}
+}

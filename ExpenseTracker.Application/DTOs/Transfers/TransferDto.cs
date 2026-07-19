@@ -17,4 +17,4 @@ public class TransferDto
     public DateTime TransferDate { get; set; }
 
     public string Notes { get; set; } = string.Empty;
-}
+}

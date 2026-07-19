@@ -18,4 +18,4 @@ public interface IAccountService
 
     Task<AccountSummaryDto> GetSummaryAsync();
     Task<PagedResult<AccountDto>> GetPagedAsync(AccountQueryDto query);
-}
+}

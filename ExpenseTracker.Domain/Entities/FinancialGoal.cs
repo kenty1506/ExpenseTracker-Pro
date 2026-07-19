@@ -30,4 +30,4 @@ public class FinancialGoal : BaseEntity
     public string Notes { get; set; } = string.Empty;
 
     public List<GoalContribution> Contributions { get; set; } = [];
-}
+}

@@ -23,4 +23,4 @@ public class BudgetSummaryDto
     public bool IsOverBudget { get; set; }
 
     public int TransactionCount { get; set; }
-}
+}

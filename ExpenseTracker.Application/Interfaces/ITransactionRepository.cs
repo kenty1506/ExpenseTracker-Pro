@@ -20,4 +20,4 @@ public interface ITransactionRepository
     Task<IEnumerable<Transaction>> GetAllForDashboardAsync(string userId);
     Task<PagedResult<Transaction>> GetPagedAsync(string userId, TransactionQueryDto query);
 
-}
+}

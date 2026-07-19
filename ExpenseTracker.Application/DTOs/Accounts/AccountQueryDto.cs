@@ -18,4 +18,4 @@ public class AccountQueryDto : PagedQuery
     public string? Currency { get; set; }
 
     public string? Search { get; set; }
-}
+}

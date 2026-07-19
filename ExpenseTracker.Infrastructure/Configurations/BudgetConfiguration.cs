@@ -45,5 +45,21 @@ public class BudgetConfiguration :
             x.Year,
             x.Month
         });
+
+        builder.HasIndex(budget => new
+        {
+            budget.UserId,
+            budget.Year,
+            budget.Month
+        });
+
+        builder.HasIndex(budget => new
+        {
+            budget.UserId,
+            budget.CategoryId,
+            budget.Year,
+            budget.Month
+        })
+        .IsUnique();
     }
-}
+}

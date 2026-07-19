@@ -9,4 +9,4 @@ public class CategoryMonthlyAmountDto
     public decimal Amount { get; set; }
 
     public int TransactionCount { get; set; }
-}
+}

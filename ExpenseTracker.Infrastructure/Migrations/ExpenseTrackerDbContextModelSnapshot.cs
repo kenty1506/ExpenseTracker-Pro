@@ -63,6 +63,12 @@ namespace ExpenseTracker.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<byte[]>("RowVersion")
+                        .IsRowVersion()
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
                     b.Property<int>("Type")
                         .HasColumnType("int");
 
@@ -81,7 +87,81 @@ namespace ExpenseTracker.Infrastructure.Migrations
                     b.HasIndex("UserId", "Name")
                         .IsUnique();
 
+                    b.HasIndex("UserId", "Type");
+
                     b.ToTable("Accounts");
+                });
+
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.AuditLog", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(
+                        b.Property<long>("Id"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("ElapsedMilliseconds")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("EntityId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Method")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("Module")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Operation")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Route")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("StatusCode")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("Succeeded")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("TraceId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("UserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAtUtc");
+
+                    b.HasIndex("UserId", "CreatedAtUtc");
+
+                    b.HasIndex("UserId", "Module", "CreatedAtUtc");
+
+                    b.HasIndex("UserId", "Module", "EntityId");
+
+                    b.ToTable("AuditLogs");
                 });
 
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.Budget", b =>
@@ -107,6 +187,12 @@ namespace ExpenseTracker.Infrastructure.Migrations
 
                     b.Property<int>("Month")
                         .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsRowVersion()
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -159,6 +245,12 @@ namespace ExpenseTracker.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsRowVersion()
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -230,6 +322,12 @@ namespace ExpenseTracker.Infrastructure.Migrations
                     b.Property<DateTime?>("TargetDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<byte[]>("RowVersion")
+                        .IsRowVersion()
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
@@ -241,6 +339,8 @@ namespace ExpenseTracker.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AccountId");
+
+                    b.HasIndex("UserId", "AccountId");
 
                     b.HasIndex("UserId", "Name")
                         .IsUnique();
@@ -270,6 +370,9 @@ namespace ExpenseTracker.Infrastructure.Migrations
                     b.Property<DateTime>("ContributionDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<int>("ContributionType")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -284,6 +387,18 @@ namespace ExpenseTracker.Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<int?>("TransactionId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("TransferId")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsRowVersion()
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
@@ -296,7 +411,15 @@ namespace ExpenseTracker.Infrastructure.Migrations
 
                     b.HasIndex("AccountId");
 
-                    b.HasIndex("FinancialGoalId");
+                    b.HasIndex("TransactionId")
+                        .HasFilter("[TransactionId] IS NOT NULL");
+
+                    b.HasIndex("TransferId", "ContributionType")
+                        .HasFilter("[TransferId] IS NOT NULL");
+
+                    b.HasIndex("FinancialGoalId", "TransferId", "ContributionType")
+                        .IsUnique()
+                        .HasFilter("[TransferId] IS NOT NULL");
 
                     b.HasIndex("UserId", "FinancialGoalId", "ContributionDate");
 
@@ -357,6 +480,12 @@ namespace ExpenseTracker.Infrastructure.Migrations
                         .HasMaxLength(300)
                         .HasColumnType("nvarchar(300)");
 
+                    b.Property<byte[]>("RowVersion")
+                        .IsRowVersion()
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
@@ -367,11 +496,15 @@ namespace ExpenseTracker.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("UserId", "CreatedAt");
+
                     b.HasIndex("UserId", "Type");
 
                     b.HasIndex("UserId", "UniqueKey")
                         .IsUnique()
                         .HasFilter("[UniqueKey] IS NOT NULL");
+
+                    b.HasIndex("UserId", "IsRead", "CreatedAt");
 
                     b.HasIndex("UserId", "IsRead", "OccurredAt");
 
@@ -421,6 +554,12 @@ namespace ExpenseTracker.Infrastructure.Migrations
 
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("datetime2");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsRowVersion()
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
 
                     b.Property<int>("Type")
                         .HasColumnType("int");
@@ -480,6 +619,12 @@ namespace ExpenseTracker.Infrastructure.Migrations
                     b.Property<DateTime>("TransferDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<byte[]>("RowVersion")
+                        .IsRowVersion()
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
@@ -499,6 +644,10 @@ namespace ExpenseTracker.Infrastructure.Migrations
                     b.HasIndex("UserId", "ToAccountId");
 
                     b.HasIndex("UserId", "TransferDate");
+
+                    b.HasIndex("UserId", "FromAccountId", "TransferDate");
+
+                    b.HasIndex("UserId", "ToAccountId", "TransferDate");
 
                     b.ToTable("Transfers");
                 });
@@ -543,8 +692,19 @@ namespace ExpenseTracker.Infrastructure.Migrations
                     b.Property<string>("PasswordHash")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime?>("RefreshTokenCreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("RefreshTokenExpiresAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RefreshTokenHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
                     b.Property<string>("PhoneNumber")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
 
                     b.Property<bool>("PhoneNumberConfirmed")
                         .HasColumnType("bit");
@@ -562,12 +722,22 @@ namespace ExpenseTracker.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("NormalizedEmail")
-                        .HasDatabaseName("EmailIndex");
+                        .IsUnique()
+                        .HasDatabaseName("EmailIndex")
+                        .HasFilter("[NormalizedEmail] IS NOT NULL");
 
                     b.HasIndex("NormalizedUserName")
                         .IsUnique()
                         .HasDatabaseName("UserNameIndex")
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
+
+                    b.HasIndex("PhoneNumber")
+                        .IsUnique()
+                        .HasFilter("[PhoneNumber] IS NOT NULL");
+
+                    b.HasIndex("RefreshTokenHash")
+                        .IsUnique()
+                        .HasFilter("[RefreshTokenHash] IS NOT NULL");
 
                     b.ToTable("AspNetUsers", (string)null);
                 });
@@ -740,6 +910,12 @@ namespace ExpenseTracker.Infrastructure.Migrations
                     b.Property<int?>("RecurringTransactionId")
                         .HasColumnType("int");
 
+                    b.Property<byte[]>("RowVersion")
+                        .IsRowVersion()
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
                     b.Property<int>("Type")
                         .HasColumnType("int");
 
@@ -761,11 +937,17 @@ namespace ExpenseTracker.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
+                    b.HasIndex("UserId", "Date");
+
                     b.HasIndex("UserId", "AccountId", "Date");
+
+                    b.HasIndex("UserId", "CategoryId", "Date");
 
                     b.HasIndex("UserId", "RecurringTransactionId", "Date")
                         .IsUnique()
                         .HasFilter("[RecurringTransactionId] IS NOT NULL");
+
+                    b.HasIndex("UserId", "Type", "Date");
 
                     b.ToTable("Transactions");
                 });
@@ -804,9 +986,23 @@ namespace ExpenseTracker.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Transaction", "Transaction")
+                        .WithMany("GoalContributions")
+                        .HasForeignKey("TransactionId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("ExpenseTracker.Domain.Entities.Transfer", "Transfer")
+                        .WithMany("GoalContributions")
+                        .HasForeignKey("TransferId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
                     b.Navigation("Account");
 
                     b.Navigation("FinancialGoal");
+
+                    b.Navigation("Transaction");
+
+                    b.Navigation("Transfer");
                 });
 
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.RecurringTransaction", b =>
@@ -955,6 +1151,16 @@ namespace ExpenseTracker.Infrastructure.Migrations
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.RecurringTransaction", b =>
                 {
                     b.Navigation("GeneratedTransactions");
+                });
+
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.Transfer", b =>
+                {
+                    b.Navigation("GoalContributions");
+                });
+
+            modelBuilder.Entity("Transaction", b =>
+                {
+                    b.Navigation("GoalContributions");
                 });
 #pragma warning restore 612, 618
         }

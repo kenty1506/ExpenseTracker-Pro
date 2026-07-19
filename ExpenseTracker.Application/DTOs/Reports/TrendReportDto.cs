@@ -13,4 +13,4 @@ public class TrendReportDto
     public decimal Balance { get; set; }
 
     public int TransactionCount { get; set; }
-}
+}

@@ -6,4 +6,4 @@ public enum NotificationPriority
     Normal = 2,
     High = 3,
     Critical = 4
-}
+}

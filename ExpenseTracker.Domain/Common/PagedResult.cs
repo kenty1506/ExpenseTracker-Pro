@@ -29,4 +29,4 @@ public class PagedResult<T>
                 TotalRecords);
 
     public List<T> Items { get; set; } = [];
-}
+}

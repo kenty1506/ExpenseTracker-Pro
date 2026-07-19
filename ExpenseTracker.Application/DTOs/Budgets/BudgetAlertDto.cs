@@ -21,4 +21,4 @@ public class BudgetAlertDto
     public string AlertLevel { get; set; } = string.Empty;
 
     public string Message { get; set; } = string.Empty;
-}
+}

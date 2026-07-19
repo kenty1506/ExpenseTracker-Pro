@@ -23,4 +23,4 @@ public interface INotificationService
     Task<NotificationDto?> CreateIfMissingAsync(CreateNotificationDto dto);
     Task<NotificationDto?> CreateIfMissingForUserAsync(string userId,CreateNotificationDto dto);
     Task<PagedResult<NotificationDto>> GetPagedAsync(NotificationQueryDto query);
-}
+}

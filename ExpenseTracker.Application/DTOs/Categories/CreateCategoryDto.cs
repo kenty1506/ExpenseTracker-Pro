@@ -7,4 +7,4 @@ public class CreateCategoryDto
     public string Color { get; set; } = "#6366F1";
 
     public string Icon { get; set; } = "category";
-}
+}

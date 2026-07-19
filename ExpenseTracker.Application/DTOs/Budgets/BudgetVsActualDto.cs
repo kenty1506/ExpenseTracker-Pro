@@ -25,4 +25,4 @@ public class BudgetVsActualDto
     public string Status { get; set; } = string.Empty;
 
     public int TransactionCount { get; set; }
-}
+}

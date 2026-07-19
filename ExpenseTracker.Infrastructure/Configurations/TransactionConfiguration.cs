@@ -51,5 +51,32 @@ public class TransactionConfiguration : IEntityTypeConfiguration<Transaction>
                 x.Date
             })
             .IsUnique();
+
+        builder.HasIndex(transaction => new
+        {
+            transaction.UserId,
+            transaction.Date
+        });
+
+        builder.HasIndex(transaction => new
+        {
+            transaction.UserId,
+            transaction.AccountId,
+            transaction.Date
+        });
+
+        builder.HasIndex(transaction => new
+        {
+            transaction.UserId,
+            transaction.CategoryId,
+            transaction.Date
+        });
+
+        builder.HasIndex(transaction => new
+        {
+            transaction.UserId,
+            transaction.Type,
+            transaction.Date
+        });
     }
-}
+}

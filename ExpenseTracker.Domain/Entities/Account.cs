@@ -32,4 +32,4 @@ public class Account : BaseEntity
     public List<FinancialGoal> FinancialGoals { get; set; } = [];
 
     public List<GoalContribution> GoalContributions { get; set; } = [];
-}
+}

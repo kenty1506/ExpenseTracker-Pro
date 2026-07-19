@@ -194,21 +194,8 @@ public class AccountService : IAccountService
 
     private static AccountDto MapToDto(Account account)
     {
-        var income = account.Transactions
-                .Where(transaction => transaction.Type ==TransactionType.Income)
-                .Sum(transaction => transaction.Amount);
-
-        var expense =account.Transactions
-                .Where(transaction => transaction.Type ==TransactionType.Expense)
-                .Sum(transaction =>transaction.Amount);
-
-        var incomingTransfers =account.IncomingTransfers
-                .Sum(transfer =>transfer.Amount);
-
-        var outgoingTransfers = account.OutgoingTransfers
-                .Sum(transfer => transfer.Amount);
-
-        var currentBalance = account.OpeningBalance+ income - expense + incomingTransfers - outgoingTransfers;
+        var balance =
+            AccountBalanceCalculator.Calculate(account);
 
         return new AccountDto
         {
@@ -216,7 +203,11 @@ public class AccountService : IAccountService
             Name = account.Name,
             Type = account.Type,
             OpeningBalance =account.OpeningBalance,
-            CurrentBalance =currentBalance,
+            TotalIncome = balance.TotalIncome,
+            TotalExpense = balance.TotalExpense,
+            IncomingTransfers = balance.IncomingTransfers,
+            OutgoingTransfers = balance.OutgoingTransfers,
+            CurrentBalance = balance.CurrentBalance,
             Currency =account.Currency,
             Color =account.Color,
             Icon =account.Icon,
@@ -238,28 +229,8 @@ public class AccountService : IAccountService
 
     private static AccountDetailsDto MapToDetailsDto(Account account)
     {
-        var income = account.Transactions
-            .Where(transaction =>
-                transaction.Type == TransactionType.Income)
-            .Sum(transaction => transaction.Amount);
-
-        var expense = account.Transactions
-            .Where(transaction =>
-                transaction.Type == TransactionType.Expense)
-            .Sum(transaction => transaction.Amount);
-
-        var incomingTransfers = account.IncomingTransfers
-            .Sum(transfer => transfer.Amount);
-
-        var outgoingTransfers = account.OutgoingTransfers
-            .Sum(transfer => transfer.Amount);
-
-        var currentBalance =
-            account.OpeningBalance
-            + income
-            - expense
-            + incomingTransfers
-            - outgoingTransfers;
+        var balance =
+            AccountBalanceCalculator.Calculate(account);
 
         var incomingActivities = account.IncomingTransfers
             .Select(transfer =>
@@ -306,7 +277,11 @@ public class AccountService : IAccountService
             Name = account.Name,
             Type = account.Type,
             OpeningBalance = account.OpeningBalance,
-            CurrentBalance = currentBalance,
+            TotalIncome = balance.TotalIncome,
+            TotalExpense = balance.TotalExpense,
+            IncomingTransfers = balance.IncomingTransfers,
+            OutgoingTransfers = balance.OutgoingTransfers,
+            CurrentBalance = balance.CurrentBalance,
             Currency = account.Currency,
             Color = account.Color,
             Icon = account.Icon,

@@ -16,4 +16,4 @@ public class UpdateTransactionDto
 
     public int AccountId { get; set; }
 
-}
+}

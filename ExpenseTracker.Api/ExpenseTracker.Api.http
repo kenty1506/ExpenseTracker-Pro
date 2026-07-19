@@ -1,6 +1,132 @@
-@ExpenseTracker.Api_HostAddress = http://localhost:5283
+@ExpenseTracker.Api_HostAddress = https://localhost:7166
+@AccessToken = paste-access-token-here
+@RefreshToken = paste-refresh-token-here
+@GoogleIdToken = paste-google-credential-id-token-here
+@PhoneNumber = +639171234567
+@VerificationCode = 123456
+@PasswordResetToken = paste-token-from-reset-link-here
 
-GET {{ExpenseTracker.Api_HostAddress}}/weatherforecast/
+GET {{ExpenseTracker.Api_HostAddress}}/health/live
 Accept: application/json
 
 ###
+
+POST {{ExpenseTracker.Api_HostAddress}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "replace-with-your-password"
+}
+
+###
+
+POST {{ExpenseTracker.Api_HostAddress}}/api/v1/auth/google
+Content-Type: application/json
+
+{
+  "idToken": "{{GoogleIdToken}}"
+}
+
+###
+
+POST {{ExpenseTracker.Api_HostAddress}}/api/v1/auth/mobile/register/request-code
+Content-Type: application/json
+
+{
+  "fullName": "Mobile Test User",
+  "phoneNumber": "{{PhoneNumber}}"
+}
+
+###
+
+POST {{ExpenseTracker.Api_HostAddress}}/api/v1/auth/mobile/register/verify
+Content-Type: application/json
+
+{
+  "phoneNumber": "{{PhoneNumber}}",
+  "code": "{{VerificationCode}}"
+}
+
+###
+
+POST {{ExpenseTracker.Api_HostAddress}}/api/v1/auth/mobile/login/request-code
+Content-Type: application/json
+
+{
+  "phoneNumber": "{{PhoneNumber}}"
+}
+
+###
+
+POST {{ExpenseTracker.Api_HostAddress}}/api/v1/auth/mobile/login/verify
+Content-Type: application/json
+
+{
+  "phoneNumber": "{{PhoneNumber}}",
+  "code": "{{VerificationCode}}"
+}
+
+###
+
+POST {{ExpenseTracker.Api_HostAddress}}/api/v1/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "testuser1@gmail.com"
+}
+
+###
+
+POST {{ExpenseTracker.Api_HostAddress}}/api/v1/auth/reset-password
+Content-Type: application/json
+
+{
+  "email": "testuser1@gmail.com",
+  "token": "{{PasswordResetToken}}",
+  "newPassword": "replace-with-a-new-strong-password"
+}
+
+###
+
+POST {{ExpenseTracker.Api_HostAddress}}/api/v1/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{RefreshToken}}"
+}
+
+###
+
+POST {{ExpenseTracker.Api_HostAddress}}/api/v1/auth/logout
+Authorization: Bearer {{AccessToken}}
+
+###
+
+GET {{ExpenseTracker.Api_HostAddress}}/api/v1/audit-trails?page=1&pageSize=20
+Authorization: Bearer {{AccessToken}}
+Accept: application/json
+
+###
+
+GET {{ExpenseTracker.Api_HostAddress}}/api/v1/audit-trails/modules/Transfers
+Authorization: Bearer {{AccessToken}}
+Accept: application/json
+
+###
+
+GET {{ExpenseTracker.Api_HostAddress}}/api/v1/audit-trails/modules
+Authorization: Bearer {{AccessToken}}
+Accept: application/json
+
+###
+
+GET {{ExpenseTracker.Api_HostAddress}}/api/v1/reports/expense-calendar?year=2026&month=7
+Authorization: Bearer {{AccessToken}}
+Accept: application/json
+
+###
+
+GET {{ExpenseTracker.Api_HostAddress}}/api/v1/budgets/forecast?months=3&historyMonths=3&safetyBufferPercent=10
+Authorization: Bearer {{AccessToken}}
+Accept: application/json

@@ -33,4 +33,4 @@ public class DashboardV2Dto
     public List<TransactionDto> RecentTransactions { get; set; } = [];
 
     public List<TransferDto> RecentTransfers { get; set; } = [];
-}
+}

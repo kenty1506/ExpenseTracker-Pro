@@ -5,3 +5,30 @@ obj/
 *.suo
 *.dll
 *.pdb
+
+# Local databases and runtime artifacts
+# SQLite database files
+*.db
+*.db-shm
+*.db-wal
+*.log
+logs/
+
+# Local secrets and environment overrides
+.env
+.env.*
+!.env.example
+appsettings.Local.json
+appsettings.*.Local.json
+secrets.json
+
+# Test and coverage output
+TestResults/
+coverage/
+coverage.*
+*.trx
+
+# Generated archives and temporary files
+*.zip
+*.tmp
+*.bak

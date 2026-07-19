@@ -268,4 +268,35 @@ public class BudgetsController : ControllerBase
         var report = await _budgetService.GetBudgetVsActualAsync(year, month);
         return Ok(report);
     }
+
+    /// <summary>
+    /// Forecasts future income, expenses, and category budget risk.
+    /// </summary>
+    /// <remarks>
+    /// The forecast starts with the next full calendar month. It combines completed-month
+    /// averages, active recurring transactions, saved budgets, and an optional safety buffer.
+    /// The response includes the assumptions and warnings used by the calculation.
+    /// </remarks>
+    /// <param name="months">Number of future months to forecast, from 3 to 12.</param>
+    /// <param name="historyMonths">Completed months used for averages, from 1 to 12.</param>
+    /// <param name="safetyBufferPercent">Extra percentage added to recommended budgets, from 0 to 50.</param>
+    /// <response code="200">The budget forecast was generated.</response>
+    /// <response code="400">A forecast option is outside its allowed range.</response>
+    /// <response code="401">Authentication is required.</response>
+    [HttpGet("forecast")]
+    [ProducesResponseType(typeof(BudgetForecastDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetForecast(
+        [FromQuery] int months = 3,
+        [FromQuery] int historyMonths = 3,
+        [FromQuery] decimal safetyBufferPercent = 10)
+    {
+        var forecast = await _budgetService.GetForecastAsync(
+            months,
+            historyMonths,
+            safetyBufferPercent);
+
+        return Ok(forecast);
+    }
 }
