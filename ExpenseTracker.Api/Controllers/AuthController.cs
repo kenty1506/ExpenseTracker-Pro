@@ -5,7 +5,9 @@ using ExpenseTracker.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Options;
 using System.Security.Claims;
+using ExpenseTracker.Infrastructure.Identity;
 
 namespace ExpenseTracker.Api.Controllers;
 
@@ -21,10 +23,21 @@ namespace ExpenseTracker.Api.Controllers;
 [Tags("Authentication")]
 public class AuthController : ControllerBase
 {
+    private const string WebRefreshCookieName =
+        "expense-tracker-refresh";
+
     private readonly IAuthService _authService;
-    public AuthController(IAuthService authService)
+    private readonly IWebHostEnvironment _environment;
+    private readonly JwtSettings _jwtSettings;
+
+    public AuthController(
+        IAuthService authService,
+        IWebHostEnvironment environment,
+        IOptions<JwtSettings> jwtOptions)
     {
         _authService = authService;
+        _environment = environment;
+        _jwtSettings = jwtOptions.Value;
     }
 
     /// <summary>
@@ -50,6 +63,7 @@ public class AuthController : ControllerBase
     {
         var result = await _authService.RegisterAsync(dto);
         AttachAuditUser(result);
+        AttachWebSession(result);
 
         if (!result.Success)
             return BadRequest(result);
@@ -79,6 +93,7 @@ public class AuthController : ControllerBase
     {
         var result = await _authService.LoginAsync(dto);
         AttachAuditUser(result);
+        AttachWebSession(result);
 
         if (!result.Success)
             return Unauthorized(result);
@@ -101,6 +116,7 @@ public class AuthController : ControllerBase
             dto,
             cancellationToken);
         AttachAuditUser(result);
+        AttachWebSession(result);
 
         return result.Success
             ? Ok(result)
@@ -146,6 +162,7 @@ public class AuthController : ControllerBase
             dto,
             cancellationToken);
         AttachAuditUser(result);
+        AttachWebSession(result);
 
         return result.Success
             ? Ok(result)
@@ -191,6 +208,7 @@ public class AuthController : ControllerBase
             dto,
             cancellationToken);
         AttachAuditUser(result);
+        AttachWebSession(result);
 
         return result.Success
             ? Ok(result)
@@ -257,6 +275,72 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
+    /// Restores a browser session from its HTTP-only refresh cookie and
+    /// rotates the refresh token without exposing it to JavaScript.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpPost("web/refresh")]
+    [EnableRateLimiting("token")]
+    [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> RefreshWebSession()
+    {
+        if (!Request.Cookies.TryGetValue(
+                WebRefreshCookieName,
+                out var refreshToken) ||
+            string.IsNullOrWhiteSpace(refreshToken))
+        {
+            DeleteWebSessionCookie();
+
+            return Unauthorized(new AuthResponseDto
+            {
+                Success = false,
+                Message = "The browser session is unavailable or expired."
+            });
+        }
+
+        var result = await _authService.RefreshTokenAsync(
+            new RefreshTokenRequestDto
+            {
+                RefreshToken = refreshToken
+            });
+
+        AttachAuditUser(result);
+
+        if (!result.Success)
+        {
+            DeleteWebSessionCookie();
+            return Unauthorized(result);
+        }
+
+        WriteWebSessionCookie(result.RefreshToken);
+        result.RefreshToken = string.Empty;
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Revokes the browser refresh session and removes its HTTP-only cookie.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpPost("web/logout")]
+    [EnableRateLimiting("token")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> LogoutWebSession()
+    {
+        if (Request.Cookies.TryGetValue(
+                WebRefreshCookieName,
+                out var refreshToken) &&
+            !string.IsNullOrWhiteSpace(refreshToken))
+        {
+            await _authService.LogoutByRefreshTokenAsync(refreshToken);
+        }
+
+        DeleteWebSessionCookie();
+        return NoContent();
+    }
+
+    /// <summary>
     /// Revokes the current user's refresh token.
     /// </summary>
     [Authorize]
@@ -289,5 +373,58 @@ public class AuthController : ControllerBase
         HttpContext.Items[
             AuditLogMiddleware.AuditUserIdItemKey] =
             result.AuditUserId;
+    }
+
+    private void AttachWebSession(AuthResponseDto result)
+    {
+        if (!IsWebClient() ||
+            !result.Success ||
+            string.IsNullOrWhiteSpace(result.RefreshToken))
+        {
+            return;
+        }
+
+        WriteWebSessionCookie(result.RefreshToken);
+        result.RefreshToken = string.Empty;
+    }
+
+    private bool IsWebClient()
+    {
+        return Request.Headers.TryGetValue(
+                   "X-ExpenseTracker-Client",
+                   out var client) &&
+               string.Equals(
+                   client.ToString(),
+                   "Web",
+                   StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void WriteWebSessionCookie(string refreshToken)
+    {
+        Response.Cookies.Append(
+            WebRefreshCookieName,
+            refreshToken,
+            CreateWebCookieOptions());
+    }
+
+    private void DeleteWebSessionCookie()
+    {
+        Response.Cookies.Delete(
+            WebRefreshCookieName,
+            CreateWebCookieOptions());
+    }
+
+    private CookieOptions CreateWebCookieOptions()
+    {
+        return new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = !_environment.IsDevelopment() || Request.IsHttps,
+            SameSite = SameSiteMode.Lax,
+            IsEssential = true,
+            Path = "/api/v1/Auth/web",
+            MaxAge = TimeSpan.FromDays(
+                _jwtSettings.RefreshTokenDurationInDays)
+        };
     }
 }

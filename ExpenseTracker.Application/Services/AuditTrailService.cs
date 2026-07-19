@@ -105,13 +105,8 @@ public sealed class AuditTrailService : IAuditTrailService
             Module = auditLog.Module,
             Operation = auditLog.Operation,
             EntityId = auditLog.EntityId,
-            Method = auditLog.Method,
-            Route = auditLog.Route,
-            Action = auditLog.Action,
-            StatusCode = auditLog.StatusCode,
             Succeeded = auditLog.Succeeded,
             ElapsedMilliseconds = auditLog.ElapsedMilliseconds,
-            TraceId = auditLog.TraceId,
             CreatedAtUtc = auditLog.CreatedAtUtc
         };
     }

@@ -3,6 +3,7 @@ using ExpenseTracker.Application.DTOs.Accounts;
 using ExpenseTracker.Application.Interfaces;
 using ExpenseTracker.Domain.Entities;
 using ExpenseTracker.Domain.Enums;
+using System.ComponentModel.DataAnnotations;
 
 namespace ExpenseTracker.Application.Services;
 
@@ -121,6 +122,13 @@ public class AccountService : IAccountService
         {
             throw new ArgumentException(
                 $"An account named '{name}' already exists.");
+        }
+
+        if (account.OpeningBalance != dto.OpeningBalance &&
+            account.Transactions.Count > 0)
+        {
+            throw new ValidationException(
+                "Opening balance can't be changed once transactions exist for this account.");
         }
 
         account.Name = name;

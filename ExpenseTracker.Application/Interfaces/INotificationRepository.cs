@@ -14,6 +14,13 @@ public interface INotificationRepository
 
     Task<Notification> CreateAsync(Notification notification);
 
+    Task<Notification> UpdateAsync(Notification notification);
+
+    Task<int> DeactivateMissingAsync(
+        string userId,
+        string uniqueKeyPrefix,
+        IReadOnlyCollection<string> activeUniqueKeys);
+
     Task<bool> MarkAsReadAsync(int id,string userId);
 
     Task<int> MarkAllAsReadAsync(string userId);
@@ -22,4 +29,4 @@ public interface INotificationRepository
 
     Task<int> DeleteReadAsync(string userId);
     Task<PagedResult<Notification>> GetPagedAsync(string userId, NotificationQueryDto query);
-}
+}

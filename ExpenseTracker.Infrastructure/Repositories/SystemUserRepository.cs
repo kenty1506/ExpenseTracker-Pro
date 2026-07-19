@@ -15,11 +15,21 @@ public class SystemUserRepository : ISystemUserRepository
     }
 
     public async Task<IReadOnlyList<string>>
-        GetAllActiveUserIdsAsync()
+        GetActiveUserIdsPageAsync(
+            string? afterUserId,
+            int pageSize,
+            CancellationToken cancellationToken = default)
     {
-        return await _context.Users
+        var boundedPageSize = Math.Clamp(pageSize, 1, 500);
+        var users = _context.Users
             .AsNoTracking()
+            .Where(user =>
+                afterUserId == null ||
+                string.Compare(user.Id, afterUserId) > 0)
+            .OrderBy(user => user.Id)
             .Select(user => user.Id)
-            .ToListAsync();
+            .Take(boundedPageSize);
+
+        return await users.ToListAsync(cancellationToken);
     }
-}
+}

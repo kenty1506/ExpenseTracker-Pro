@@ -23,6 +23,7 @@ public class AccountRepository : IAccountRepository
     {
         return await _context.Accounts
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(account => account.IncomingTransfers)
             .Include(account => account.OutgoingTransfers)
             .Where(account =>account.UserId == userId)
@@ -36,6 +37,7 @@ public class AccountRepository : IAccountRepository
     {
         return await _context.Accounts
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(account => account.Transactions)
             .Include(account => account.IncomingTransfers)
             .ThenInclude(transfer => transfer.FromAccount)
@@ -126,6 +128,7 @@ public class AccountRepository : IAccountRepository
     {
         var accounts = _context.Accounts
             .AsNoTracking()
+            .AsSplitQuery()
             .Where(account =>
                 account.UserId == userId)
             .Include(account =>

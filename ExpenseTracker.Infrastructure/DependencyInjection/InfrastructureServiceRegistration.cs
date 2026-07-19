@@ -14,13 +14,18 @@ public static class InfrastructureServiceRegistration
         this IServiceCollection services,
         string connectionString)
     {
-        services.AddDbContext<ExpenseTrackerDbContext>(options =>
+        services.AddDbContextPool<ExpenseTrackerDbContext>(options =>
             options.UseSqlServer(
                 connectionString,
                 sqlOptions =>
                 {
-            sqlOptions.EnableRetryOnFailure();
-        }));
+                    sqlOptions.CommandTimeout(30);
+                    sqlOptions.EnableRetryOnFailure(
+                        maxRetryCount: 5,
+                        maxRetryDelay: TimeSpan.FromSeconds(10),
+                        errorNumbersToAdd: null);
+                }),
+            poolSize: 256);
 
         services.AddIdentityCore<ApplicationUser>(options =>
         {

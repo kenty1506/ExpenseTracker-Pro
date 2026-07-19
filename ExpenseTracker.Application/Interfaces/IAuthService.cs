@@ -39,4 +39,6 @@ public interface IAuthService
         RefreshTokenRequestDto dto);
 
     Task LogoutAsync(string userId);
+
+    Task LogoutByRefreshTokenAsync(string refreshToken);
 }

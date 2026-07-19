@@ -9,6 +9,17 @@ namespace ExpenseTracker.Infrastructure.Repositories;
 
 public sealed class AuditTrailRepository : IAuditTrailRepository
 {
+    private static readonly string[] ExcludedModules =
+    [
+        "Auth",
+        "Authentication",
+        "Authorization",
+        "Identity",
+        "Session",
+        "Token",
+        "Security"
+    ];
+
     private readonly ExpenseTrackerDbContext _context;
 
     public AuditTrailRepository(ExpenseTrackerDbContext context)
@@ -22,7 +33,9 @@ public sealed class AuditTrailRepository : IAuditTrailRepository
     {
         var auditLogs = _context.AuditLogs
             .AsNoTracking()
-            .Where(audit => audit.UserId == userId)
+            .Where(audit =>
+                audit.UserId == userId &&
+                !ExcludedModules.Contains(audit.Module))
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(query.Module))
@@ -83,9 +96,6 @@ public sealed class AuditTrailRepository : IAuditTrailRepository
             auditLogs = auditLogs.Where(audit =>
                 audit.Module.Contains(search) ||
                 audit.Operation.Contains(search) ||
-                audit.Action.Contains(search) ||
-                audit.Route.Contains(search) ||
-                audit.TraceId.Contains(search) ||
                 (audit.EntityId != null &&
                  audit.EntityId.Contains(search)));
         }
@@ -124,7 +134,8 @@ public sealed class AuditTrailRepository : IAuditTrailRepository
             .AsNoTracking()
             .FirstOrDefaultAsync(audit =>
                 audit.Id == id &&
-                audit.UserId == userId);
+                audit.UserId == userId &&
+                !ExcludedModules.Contains(audit.Module));
     }
 
     public async Task<IReadOnlyList<AuditModuleSummaryDto>>
@@ -135,7 +146,9 @@ public sealed class AuditTrailRepository : IAuditTrailRepository
     {
         var auditLogs = _context.AuditLogs
             .AsNoTracking()
-            .Where(audit => audit.UserId == userId)
+            .Where(audit =>
+                audit.UserId == userId &&
+                !ExcludedModules.Contains(audit.Module))
             .AsQueryable();
 
         if (fromUtc.HasValue)

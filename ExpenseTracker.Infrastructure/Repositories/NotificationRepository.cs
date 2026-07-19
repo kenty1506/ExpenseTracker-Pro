@@ -24,7 +24,8 @@ public class NotificationRepository : INotificationRepository
         var query = _context.Notifications
             .AsNoTracking()
             .Where(notification =>
-                notification.UserId == userId);
+                notification.UserId == userId &&
+                notification.IsActive);
 
         if (unreadOnly)
         {
@@ -70,6 +71,58 @@ public class NotificationRepository : INotificationRepository
         await _context.SaveChangesAsync();
 
         return notification;
+    }
+
+    public async Task<Notification> UpdateAsync(
+        Notification notification)
+    {
+        var existing = await _context.Notifications
+            .FirstAsync(item =>
+                item.Id == notification.Id &&
+                item.UserId == notification.UserId);
+        var wasInactive = !existing.IsActive;
+
+        existing.Type = notification.Type;
+        existing.Priority = notification.Priority;
+        existing.Title = notification.Title;
+        existing.Message = notification.Message;
+        existing.OccurredAt = notification.OccurredAt;
+        existing.ReferenceType = notification.ReferenceType;
+        existing.ReferenceId = notification.ReferenceId;
+        existing.ActionUrl = notification.ActionUrl;
+        existing.IsActive = true;
+        existing.UpdatedAt = DateTime.UtcNow;
+
+        if (wasInactive)
+        {
+            existing.IsRead = false;
+            existing.ReadAt = null;
+        }
+
+        await _context.SaveChangesAsync();
+        return existing;
+    }
+
+    public Task<int> DeactivateMissingAsync(
+        string userId,
+        string uniqueKeyPrefix,
+        IReadOnlyCollection<string> activeUniqueKeys)
+    {
+        var query = _context.Notifications.Where(notification =>
+            notification.UserId == userId &&
+            notification.IsActive &&
+            notification.UniqueKey != null &&
+            notification.UniqueKey.StartsWith(uniqueKeyPrefix));
+
+        if (activeUniqueKeys.Count > 0)
+        {
+            query = query.Where(notification =>
+                !activeUniqueKeys.Contains(notification.UniqueKey!));
+        }
+
+        return query.ExecuteUpdateAsync(setters => setters
+            .SetProperty(notification => notification.IsActive, false)
+            .SetProperty(notification => notification.UpdatedAt, DateTime.UtcNow));
     }
 
     public async Task<bool> MarkAsReadAsync(
@@ -171,7 +224,8 @@ public class NotificationRepository : INotificationRepository
         var notifications = _context.Notifications
             .AsNoTracking()
             .Where(notification =>
-                notification.UserId == userId)
+                notification.UserId == userId &&
+                notification.IsActive)
             .AsQueryable();
 
         if (query.IsRead.HasValue)
@@ -337,4 +391,4 @@ public class NotificationRepository : INotificationRepository
                         notification.Id)
         };
     }
-}
+}

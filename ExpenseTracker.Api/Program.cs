@@ -20,6 +20,9 @@ using Microsoft.AspNetCore.RateLimiting;
 using System.Security.Claims;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.DataProtection;
+using System.IO.Compression;
+using Microsoft.AspNetCore.ResponseCompression;
+using ExpenseTracker.Api.Services.Momo;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -27,6 +30,38 @@ var builder = WebApplication.CreateBuilder(args);
 // Register application services
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<BrotliCompressionProvider>();
+    options.Providers.Add<GzipCompressionProvider>();
+});
+builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
+{
+    options.Level = CompressionLevel.Fastest;
+});
+builder.Services.Configure<GzipCompressionProviderOptions>(options =>
+{
+    options.Level = CompressionLevel.Fastest;
+});
+
+var allowedOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins")
+    .Get<string[]>() ?? [];
+
+if (allowedOrigins.Length > 0)
+{
+    builder.Services.AddCors(options =>
+    {
+        options.AddPolicy("WebClient", policy =>
+        {
+            policy.WithOrigins(allowedOrigins)
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials();
+        });
+    });
+}
 builder.Services.AddDataProtection()
     .SetApplicationName("ExpenseTracker.Pro");
 
@@ -243,6 +278,17 @@ builder.Services.AddRateLimiter(options =>
                 AutoReplenishment = true
             }));
 
+    options.AddPolicy("momo", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            GetRateLimitPartitionKey(context),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 20,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+
     options.OnRejected = async (rejectedContext, cancellationToken) =>
     {
         rejectedContext.HttpContext.Response.ContentType =
@@ -273,6 +319,8 @@ builder.Services.AddScoped<IFinancialGoalService,FinancialGoalService>();
 builder.Services.AddScoped<INotificationService,NotificationService>();
 builder.Services.AddScoped<INotificationEngineService, NotificationEngineService>();
 builder.Services.AddScoped<IAuditTrailService, AuditTrailService>();
+builder.Services.AddSingleton<MomoConversationEngine>();
+builder.Services.AddScoped<IMomoAssistantService, MomoAssistantService>();
 builder.Services.AddHostedService<ExpenseTrackerBackgroundService>();
 builder.Services.AddScoped<ISystemBackgroundProcessor, SystemBackgroundProcessor>();
 builder.Services.AddEndpointsApiExplorer();
@@ -287,6 +335,7 @@ builder.Services
         tags: ["database", "ready"]);
 
 var app = builder.Build();
+app.UseResponseCompression();
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<AuditLogMiddleware>();
 app.UseExceptionHandler();
@@ -354,6 +403,10 @@ app.Use(async (context, next) =>
 });
 
 app.UseRouting();
+if (allowedOrigins.Length > 0)
+{
+    app.UseCors("WebClient");
+}
 app.UseAuthentication();
 app.UseRateLimiter();
 app.UseAuthorization();

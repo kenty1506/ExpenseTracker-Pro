@@ -35,7 +35,8 @@ public sealed class AuditLogMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
-        if (!MutatingMethods.Contains(context.Request.Method))
+        if (!MutatingMethods.Contains(context.Request.Method) ||
+            IsNonAuditableRequest(context.Request))
         {
             await _next(context);
             return;
@@ -88,6 +89,17 @@ public sealed class AuditLogMiddleware
                 "Could not persist audit event for TraceId {TraceId}.",
                 context.TraceIdentifier);
         }
+    }
+
+    private static bool IsNonAuditableRequest(HttpRequest request)
+    {
+        var path = request.Path.Value;
+
+        // MoMo chat is a read-only analysis request. Persisting one audit row
+        // per message would add cost and create unnecessary conversation traces.
+        return path?.Contains(
+            "/Momo/chat",
+            StringComparison.OrdinalIgnoreCase) == true;
     }
 
     private static string ResolveAction(HttpContext context)

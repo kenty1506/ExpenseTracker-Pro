@@ -373,7 +373,7 @@ public static class BudgetForecastCalculator
         return utilization switch
         {
             > 100 => "Over Budget",
-            >= 80 => "Warning",
+            > 80 => "Warning",
             _ => "On Track"
         };
     }

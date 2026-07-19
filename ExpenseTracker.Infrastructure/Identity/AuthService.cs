@@ -68,13 +68,9 @@ public class AuthService : IAuthService
             return IdentityFailure(result);
         }
 
-        return new AuthResponseDto
-        {
-            Success = true,
-            Message = "Registration successful.",
-            Token = string.Empty,
-            AuditUserId = user.Id
-        };
+        var response = await IssueTokenPairAsync(user);
+        response.Message = "Registration successful.";
+        return response;
     }
 
     public async Task<AuthResponseDto> LoginAsync(LoginUserDto dto)
@@ -400,6 +396,33 @@ public class AuthService : IAuthService
     public async Task LogoutAsync(string userId)
     {
         var user = await _userManager.FindByIdAsync(userId);
+
+        if (user is null)
+        {
+            return;
+        }
+
+        user.RefreshTokenHash = null;
+        user.RefreshTokenCreatedAtUtc = null;
+        user.RefreshTokenExpiresAtUtc = null;
+
+        EnsureIdentityUpdateSucceeded(
+            await _userManager.UpdateAsync(user),
+            "The session could not be revoked.");
+    }
+
+    public async Task LogoutByRefreshTokenAsync(string refreshToken)
+    {
+        if (string.IsNullOrWhiteSpace(refreshToken))
+        {
+            return;
+        }
+
+        var refreshTokenHash = _jwtService.HashRefreshToken(
+            refreshToken.Trim());
+
+        var user = await _userManager.Users.SingleOrDefaultAsync(candidate =>
+            candidate.RefreshTokenHash == refreshTokenHash);
 
         if (user is null)
         {

@@ -131,6 +131,7 @@ public class NotificationService : INotificationService
 
         ValidateNotificationType(dto.Type);
         ValidateNotificationPriority(dto.Priority);
+        ValidateActionUrl(dto.ActionUrl);
 
         if (!string.IsNullOrWhiteSpace(dto.UniqueKey))
         {
@@ -141,7 +142,35 @@ public class NotificationService : INotificationService
                         dto.UniqueKey.Trim());
 
             if (existing != null)
-                return null;
+            {
+                var changed = !existing.IsActive ||
+                    existing.Type != dto.Type ||
+                    existing.Priority != dto.Priority ||
+                    existing.Title != dto.Title.Trim() ||
+                    existing.Message != dto.Message.Trim() ||
+                    existing.ReferenceType != Normalize(dto.ReferenceType) ||
+                    existing.ReferenceId != dto.ReferenceId ||
+                    existing.ActionUrl != Normalize(dto.ActionUrl);
+
+                if (!changed)
+                {
+                    return null;
+                }
+
+                existing.Type = dto.Type;
+                existing.Priority = dto.Priority;
+                existing.Title = dto.Title.Trim();
+                existing.Message = dto.Message.Trim();
+                existing.OccurredAt = dto.OccurredAt == default
+                    ? DateTime.UtcNow
+                    : dto.OccurredAt;
+                existing.ReferenceType = Normalize(dto.ReferenceType);
+                existing.ReferenceId = dto.ReferenceId;
+                existing.ActionUrl = Normalize(dto.ActionUrl);
+
+                var updated = await _notificationRepository.UpdateAsync(existing);
+                return MapToDto(updated);
+            }
         }
 
         var notification = new Notification
@@ -180,6 +209,24 @@ public class NotificationService : INotificationService
         return MapToDto(created);
     }
 
+    public Task<int> DeactivateMissingForUserAsync(
+        string userId,
+        string uniqueKeyPrefix,
+        IReadOnlyCollection<string> activeUniqueKeys)
+    {
+        if (string.IsNullOrWhiteSpace(userId) ||
+            string.IsNullOrWhiteSpace(uniqueKeyPrefix))
+        {
+            throw new ArgumentException(
+                "A user and notification key prefix are required.");
+        }
+
+        return _notificationRepository.DeactivateMissingAsync(
+            userId,
+            uniqueKeyPrefix.Trim(),
+            activeUniqueKeys);
+    }
+
     private static void ValidateNotificationType(
         NotificationType type)
     {
@@ -198,6 +245,31 @@ public class NotificationService : INotificationService
             throw new ArgumentException(
                 "Please provide a valid notification priority.");
         }
+    }
+
+    private static void ValidateActionUrl(string? actionUrl)
+    {
+        if (string.IsNullOrWhiteSpace(actionUrl))
+        {
+            return;
+        }
+
+        var value = actionUrl.Trim();
+
+        if (!value.StartsWith('/') ||
+            value.StartsWith("//", StringComparison.Ordinal) ||
+            !Uri.TryCreate(value, UriKind.Relative, out _))
+        {
+            throw new ArgumentException(
+                "Notification action URLs must be safe in-app paths.");
+        }
+    }
+
+    private static string? Normalize(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? null
+            : value.Trim();
     }
 
     private static NotificationDto MapToDto(
@@ -239,4 +311,4 @@ public class NotificationService : INotificationService
                 .ToList()
         };
     }
-}
+}
