@@ -7,4 +7,4 @@ public enum GoalContributionType
     TransferWithdrawal = 3,
     Adjustment = 4,
     Interest = 5
-}
+}

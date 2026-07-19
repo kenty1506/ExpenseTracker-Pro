@@ -27,4 +27,4 @@ public class Transaction : BaseEntity
     public RecurringTransaction? RecurringTransaction { get; set; }
     public ICollection<GoalContribution> GoalContributions
     { get; set; } = new List<GoalContribution>();
-}
+}

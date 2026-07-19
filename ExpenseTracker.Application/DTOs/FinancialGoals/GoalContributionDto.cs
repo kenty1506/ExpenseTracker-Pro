@@ -24,4 +24,4 @@ public class GoalContributionDto
         ContributionType == GoalContributionType.TransferWithdrawal;
 
     public int? TransactionId { get; set; }
-}
+}

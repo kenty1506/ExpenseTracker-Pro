@@ -27,4 +27,4 @@ public interface IFinancialGoalService
 
     Task<GoalContributionDto?> AddInterestAsync(int financialGoalId,AddGoalInterestDto dto);
 
-}
+}

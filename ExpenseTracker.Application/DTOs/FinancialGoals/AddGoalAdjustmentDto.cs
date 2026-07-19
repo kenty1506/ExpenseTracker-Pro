@@ -15,4 +15,4 @@ public class AddGoalAdjustmentDto
     [Required]
     [MaxLength(500)]
     public string Notes { get; set; } = string.Empty;
-}
+}

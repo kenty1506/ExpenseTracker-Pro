@@ -30,4 +30,4 @@ public class GoalContribution : BaseEntity
     public int? TransactionId { get; set; }
 
     public Transaction? Transaction { get; set; }
-}
+}
